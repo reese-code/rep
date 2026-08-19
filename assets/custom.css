@@ -1,0 +1,481 @@
+/**
+ * Custom Typography Styles for Startify Horizon
+ * Implements Neue Montreal font family across the theme
+ * Author: Startify Agency
+ * Created: 2025
+ */
+
+
+ :root {
+  --color-bg: #EDEAE4;
+  --color-contrast-high: #171717;
+  --color-contrast-higher: #000;
+  --font-body: 'Neue Montreal', serif;
+  --font-header: 'Neue Montreal', serif;
+  --font-button: 'Neue Montreal', serif;
+  
+  /* Border radius values */
+  --border-radius-sm: 8px;
+  --border-radius: 16px; 
+  --border-radius-lg: 20px;
+  
+  /* Spacing constants */
+  --spacing-lg: 40px;
+  --spacing-md: 20px;
+  --spacing-sm: 12px;
+}
+
+/* Color utility classes */
+.color-bg {
+  color: var(--color-bg) !important;
+}
+
+.bg {
+  background-color: var(--color-bg) !important;
+}
+
+.bg-dark {
+  background-color: var(--color-bg) !important;
+}
+
+/* =============================================
+ * 2. BASE/RESET STYLES
+ * ============================================= */
+html, 
+body {
+  background-color: var(--color-bg) !important;
+}
+
+
+
+
+/* ============================================
+   1. FONT FACE DECLARATIONS
+   ============================================ */
+
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('./NeueMontreal-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('./NeueMontreal-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================
+   2. CUSTOM FONT PROPERTIES
+   ============================================ */
+
+:root {
+  /* Primary Font Definitions */
+  --font-header: 'Neue Montreal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-body: 'Neue Montreal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-button: 'Neue Montreal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  
+  /* Font Weight Definitions */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+}
+
+/* ============================================
+   3. HORIZON TYPOGRAPHY VARIABLE OVERRIDES
+   ============================================ */
+
+:root {
+  /* Override Heading Font Families */
+  --font-h1--family: var(--font-header);
+  --font-h2--family: var(--font-header);
+  --font-h3--family: var(--font-header);
+  --font-h4--family: var(--font-header);
+  --font-h5--family: var(--font-header);
+  --font-h6--family: var(--font-header);
+  
+  /* Override Heading Font Weights */
+  --font-h1--weight: var(--font-weight-medium);
+  --font-h2--weight: var(--font-weight-medium);
+  --font-h3--weight: var(--font-weight-medium);
+  --font-h4--weight: var(--font-weight-medium);
+  --font-h5--weight: var(--font-weight-medium);
+  --font-h6--weight: var(--font-weight-medium);
+  
+  /* Override Body/Paragraph Font */
+  --font-paragraph--family: var(--font-body);
+  --font-paragraph--weight: var(--font-weight-regular);
+  
+  /* Override Additional Typography Variables */
+  --font-body-family: var(--font-body);
+  --font-body-weight: var(--font-weight-regular);
+  --font-heading-family: var(--font-header);
+  --font-heading-weight: var(--font-weight-medium);
+}
+
+/* ============================================
+   4. DIRECT ELEMENT STYLES
+   ============================================ */
+
+/* Headings */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6, jumbo-text, .ready {
+  font-family: var(--font-header) !important;
+  font-weight: var(--font-weight-medium) !important;
+  font-feature-settings: 'liga' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Body Text */
+body {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Paragraphs */
+p {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-regular);
+}
+
+/* Links */
+a {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-regular);
+}
+
+/* Strong/Bold Text within Body Content */
+p strong, p b, 
+a strong, a b {
+  font-weight: var(--font-weight-medium);
+}
+
+/* ============================================
+   5. BUTTON STYLES
+   ============================================ */
+
+/* All Button Elements and Classes */
+button,
+.button,
+.btn,
+[type="button"],
+[type="submit"],
+.shopify-payment-button__button,
+.product-form__submit,
+.cart__checkout-button,
+.quick-add__submit {
+  font-family: var(--font-button) !important;
+  font-weight: var(--font-weight-medium) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   6. FORM ELEMENTS
+   ============================================ */
+
+input,
+textarea,
+select,
+.field__input,
+.select__select {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-regular);
+}
+
+/* Form Labels */
+label,
+.field__label {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-regular);
+}
+
+/* ============================================
+   7. NAVIGATION & MENUS
+   ============================================ */
+
+.header__menu-item,
+.menu-drawer__menu-item,
+nav a,
+.nav-link {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-regular);
+}
+
+/* ============================================
+   8. UTILITY CLASSES
+   ============================================ */
+
+/* Font Weight Utilities */
+.font-body-weight-regular {
+  font-weight: var(--font-weight-regular) !important;
+}
+
+.font-body-weight-medium {
+  font-weight: var(--font-weight-medium) !important;
+}
+
+.font-heading-weight {
+  font-weight: var(--font-weight-medium) !important;
+}
+
+/* Font Family Utilities */
+.font-body-family {
+  font-family: var(--font-body) !important;
+}
+
+.font-heading-family {
+  font-family: var(--font-header) !important;
+}
+
+/* ============================================
+   9. SPECIAL COMPONENTS
+   ============================================ */
+
+/* Product Titles */
+.product__title,
+.card__heading,
+.product-card__title {
+  font-family: var(--font-header);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Price Display */
+.price,
+.price-item,
+.product__price {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-regular);
+}
+
+/* Badges and Labels */
+.badge,
+.label,
+.tag {
+  font-family: var(--font-body);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ============================================
+   10. RESPONSIVE TYPOGRAPHY ADJUSTMENTS
+   ============================================ */
+
+/* Ensure font rendering is optimized across all breakpoints */
+@media screen and (max-width: 749px) {
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* ============================================
+   11. PRINT STYLES
+   ============================================ */
+
+@media print {
+  body {
+    font-family: var(--font-body);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-header);
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+/* ============================================
+   12. TAILWIND OVERRIDE FIXES
+   ============================================ */
+
+/* Preserve Horizon theme heading sizes from Tailwind reset */
+h1 {
+  font-size: var(--font-h1--size) !important;
+  line-height: var(--font-h1--line-height) !important;
+  letter-spacing: var(--font-h1--letter-spacing) !important;
+}
+
+h2 {
+  font-size: var(--font-h2--size) !important;
+  line-height: var(--font-h2--line-height) !important;
+  letter-spacing: var(--font-h2--letter-spacing) !important;
+}
+
+h3 {
+  font-size: var(--font-h3--size) !important;
+  line-height: var(--font-h3--line-height) !important;
+  letter-spacing: var(--font-h3--letter-spacing) !important;
+}
+
+h4 {
+  font-size: var(--font-h4--size) !important;
+  line-height: var(--font-h4--line-height) !important;
+  letter-spacing: var(--font-h4--letter-spacing) !important;
+}
+
+h5 {
+  font-size: var(--font-h5--size) !important;
+  line-height: var(--font-h5--line-height) !important;
+  letter-spacing: var(--font-h5--letter-spacing) !important;
+}
+
+h6 {
+  font-size: var(--font-h6--size) !important;
+  line-height: var(--font-h6--line-height) !important;
+  letter-spacing: var(--font-h6--letter-spacing) !important;
+}
+
+/* Preserve theme paragraph styles from Tailwind reset */
+p {
+  font-size: var(--font-paragraph--size) !important;
+  line-height: var(--font-paragraph--line-height) !important;
+  letter-spacing: var(--font-paragraph--letter-spacing) !important;
+}
+
+
+.text-indent {
+  text-indent: 2em;
+  position: relative;
+}
+
+
+
+/* =============================================
+ * 4. LAYOUT UTILITIES
+ * ============================================= */
+/* Margin utilities */
+.mx-d {
+  margin-left: var(--spacing-lg);
+  margin-right: var(--spacing-lg);
+}
+
+/* Padding utilities */
+.px-d {
+  padding-left: var(--spacing-lg) !important;
+  padding-right: var(--spacing-lg) !important;
+}
+
+.py-d {
+  padding-top: var(--spacing-lg) !important;
+  padding-bottom: var(--spacing-lg) !important;
+}
+
+/* Border radius utility */
+.br {
+  border-radius: var(--border-radius-lg) !important;
+  -webkit-border-radius: var(--border-radius-lg) !important;
+  -moz-border-radius: var(--border-radius-lg) !important;
+  -ms-border-radius: var(--border-radius-lg) !important;
+  -o-border-radius: var(--border-radius-lg) !important;
+  overflow: hidden;
+}
+
+.tw-grid {
+  display: grid;
+}
+
+/* Responsive layout adjustments */
+@media(max-width:1023px) {
+  .mx-d {
+    margin-left: var(--spacing-md);
+    margin-right: var(--spacing-md);
+  }
+  
+  .px-d {
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
+  }
+  
+  .py-d {
+    padding-top: var(--spacing-md) !important;
+    padding-bottom: var(--spacing-md) !important;
+  }
+}
+
+/* =============================================
+ * 5. COMPONENTS (BUTTONS, FORMS, ETC.)
+ * ============================================= */
+/* Button styles */
+.btn {
+  background-color: var(--color-contrast-higher);
+  padding: 10px 40px;
+  position: relative;
+  display: inline-block;
+  padding: 1.5em 3em;
+  color: var(--color-bg);
+  text-align: center;
+  text-decoration: none;
+  font-family: var(--font-button);
+  font-size: 15px;
+  border: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.btn:hover {
+  background-color: var(--color-contrast-high);
+  cursor: pointer;
+}
+
+.btn:hover::before {
+  border-color: var(--color-bg);
+}
+
+/* Inverted button style */
+.btn--invert {
+  background-color: var(--color-bg);
+  color: var(--color-contrast-higher);
+}
+
+
+.btn--invert:hover {
+  background-color: var(--color-contrast-lower) !important;
+}
+
+
+/* Form elements */
+.field__input, 
+.select__select, 
+.customer .field input, 
+.customer select {
+  border-radius: var(--border-radius);
+}
+
+.field__input {
+  background-color: var(--color-bg) !important;
+}
+
+.field::after, 
+.select::after, 
+.customer .field::after, 
+.customer select::after, 
+.localization-form__select::after {
+  box-shadow: none;
+}
+
+select::after:active {
+  box-shadow: none;
+}
+
+.field:hover.field::after, 
+.select:hover.select::after, 
+.select__select:hover.select__select::after, 
+.customer .field:hover.field::after, 
+.customer select:hover.select::after, 
+.localization-form__select:hover.localization-form__select::after {
+  box-shadow: none;
+}
+
+.field__input:focus, 
+.select__select:focus, 
+.customer .field input:focus, 
+.customer select:focus, 
+.localization-form__select:focus.localization-form__select::after {
+  box-shadow: none;
+  border-radius: var(--border-radius);
+}

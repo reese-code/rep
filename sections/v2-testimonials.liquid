@@ -1,0 +1,307 @@
+<style>
+
+
+.v2-testimonials {
+  padding: 4rem 1rem;
+  overflow: hidden;
+}
+
+.v2-testimonials__container {
+  margin: 0 auto;
+  max-width: 1800px;
+}
+
+.v2-testimonials__title {
+  text-align: center;
+  line-height: 1;
+
+  letter-spacing: -0.02em;
+}
+
+.v2-testimonials__marquee {
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.v2-testimonials__track {
+  display: flex;
+  gap: 4px;
+  width: max-content;
+  padding: 2rem 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+  touch-action: pan-y pinch-zoom;
+}
+
+.v2-testimonials__card {
+  position: relative;
+  width: 300px;
+  cursor: pointer;
+}
+
+.v2-testimonials__card--small {
+  height: 300px;
+}
+
+.v2-testimonials__card--medium {
+  height: 400px;
+}
+
+.v2-testimonials__card--large {
+  height: 500px;
+}
+
+
+.v2-testimonials__card {
+  position: relative;
+  width: 300px;
+  overflow: hidden;
+}
+
+.v2-testimonials__content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.v2-testimonials__content::before,
+.v2-testimonials__content::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.v2-testimonials__content::before {
+  top: 0;
+  background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.00) 100%);
+  height: 75px;
+}
+
+.v2-testimonials__content::after {
+  bottom: 0;
+  background: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.00) 100%);
+  height: 250px;
+}
+
+.v2-testimonials__background-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.v2-testimonials__profile {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.v2-testimonials__profile-image {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.v2-testimonials__handle {
+  color: #fff;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.v2-testimonials__quote {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 2;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .v2-testimonials__card {
+    width: 250px;
+  }
+  
+  .v2-testimonials__card--small {
+    height: 250px;
+  }
+  
+  .v2-testimonials__card--medium {
+    height: 350px;
+  }
+  
+  .v2-testimonials__card--large {
+    height: 450px;
+  }
+
+  .v2-testimonials__quote { 
+    font-size: 14px;
+  }
+}
+</style>
+
+<script src="{{ 'carousel-drag.js' | asset_url }}" defer></script>
+
+<div class="v2-testimonials" id="reviews">
+  <div class="v2-testimonials__container">
+    <h2 class="v2-testimonials__title tw-my-0 lg:tw-my-0">{{ section.settings.title }}</h2>
+    
+    <div class="v2-testimonials__marquee">
+      <div class="v2-testimonials__track tw-justify-center tw-items-center">
+        {%- for block in section.blocks -%}
+          <div class="v2-testimonials__card v2-testimonials__card--{{ block.settings.size }}" {{ block.shopify_attributes }}>
+            <div class="v2-testimonials__content v2-border">
+              {%- if block.settings.image != blank -%}
+                {{ block.settings.image | image_url: width: 600 | image_tag:
+                  loading: 'lazy',
+                  class: 'v2-testimonials__background-image',
+                  alt: ''
+                }}
+              {%- endif -%}
+              
+              <div class="v2-testimonials__profile">
+                {%- if block.settings.profile_image != blank -%}
+                  {{ block.settings.profile_image | image_url: width: 100 | image_tag:
+                    loading: 'lazy',
+                    class: 'v2-testimonials__profile-image',
+                    alt: ''
+                  }}
+                {%- endif -%}
+                {%- if block.settings.instagram_handle != blank -%}
+                  <a href="https://www.instagram.com/{{ block.settings.instagram_handle }}" target="_blank" rel="noopener" class="v2-testimonials__handle">@{{ block.settings.instagram_handle }}</a>
+                {%- endif -%}
+              </div>
+              
+              <p class="v2-testimonials__quote">{{ block.settings.quote }}</p>
+            </div>
+          </div>
+        {%- endfor -%}
+        
+        {%- for block in section.blocks -%}
+          <div class="v2-testimonials__card v2-testimonials__card--{{ block.settings.size }}" aria-hidden="true">
+            <div class="v2-testimonials__content v2-border">
+              {%- if block.settings.image != blank -%}
+                {{ block.settings.image | image_url: width: 600 | image_tag:
+                  loading: 'lazy',
+                  class: 'v2-testimonials__background-image',
+                  alt: ''
+                }}
+              {%- endif -%}
+              
+              <div class="v2-testimonials__profile">
+                {%- if block.settings.profile_image != blank -%}
+                  {{ block.settings.profile_image | image_url: width: 100 | image_tag:
+                    loading: 'lazy',
+                    class: 'v2-testimonials__profile-image',
+                    alt: ''
+                  }}
+                {%- endif -%}
+                {%- if block.settings.instagram_handle != blank -%}
+                  <a href="https://www.instagram.com/{{ block.settings.instagram_handle }}" target="_blank" rel="noopener" class="v2-testimonials__handle">@{{ block.settings.instagram_handle }}</a>
+                {%- endif -%}
+              </div>
+              
+              <p class="v2-testimonials__quote">{{ block.settings.quote }}</p>
+            </div>
+          </div>
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Testimonials",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Title",
+      "default": "TRUSTED BY OVER 100,000 MEN"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "testimonial",
+      "name": "Testimonial",
+      "settings": [
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Background Image"
+        },
+        {
+          "type": "image_picker",
+          "id": "profile_image",
+          "label": "Profile Picture"
+        },
+        {
+          "type": "text",
+          "id": "quote",
+          "label": "Quote",
+          "default": "STATELY'S BEEN A GAME-CHANGER. FOUR BOXES IN, NOT A SINGLE MISS. I LOOK AND FEEL GREAT - THANKS NATALIE!"
+        },
+        {
+          "type": "text",
+          "id": "instagram_handle",
+          "label": "Instagram Handle (without @)",
+          "info": "Example: username"
+        },
+        {
+          "type": "select",
+          "id": "size",
+          "label": "Card Size",
+          "options": [
+            {
+              "value": "small",
+              "label": "Small"
+            },
+            {
+              "value": "medium",
+              "label": "Medium"
+            },
+            {
+              "value": "large",
+              "label": "Large"
+            }
+          ],
+          "default": "medium"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Testimonials",
+      "blocks": [
+        {
+          "type": "testimonial"
+        },
+        {
+          "type": "testimonial"
+        },
+        {
+          "type": "testimonial"
+        }
+      ]
+    }
+  ]
+}
+{% endschema %}

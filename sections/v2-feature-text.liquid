@@ -1,0 +1,189 @@
+<div class="feature-text-section px-d tw-w-full py-d">
+  <div class="feature-text-container tw-flex tw-flex-col lg:tw-flex-row tw-items-center tw-gap-8 lg:tw-gap-12 {% if section.settings.right_text %}tw-justify-end{% else %}tw-justify-center{% endif %}">
+    
+    {% comment %} Main Image (Left side on desktop) {% endcomment %}
+    {% if section.settings.main_image != blank %}
+      <div class="main-image-wrapper tw-flex-shrink-0 tw-w-full lg:tw-w-auto">
+        <img 
+          src="{{ section.settings.main_image | image_url: width: 400 }}"
+          srcset="{{ section.settings.main_image | image_url: width: 200 }} 200w,
+                  {{ section.settings.main_image | image_url: width: 400 }} 400w,
+                  {{ section.settings.main_image | image_url: width: 600 }} 600w"
+          sizes="(max-width: 1023px) 100vw, 400px"
+          alt="{{ section.settings.main_image.alt | default: section.settings.feature_heading | strip_html | truncate: 160 }}"
+          width="400"
+          height="{{ 400 | divided_by: section.settings.main_image.aspect_ratio | round }}"
+          loading="lazy"
+          class="tw-w-full tw-h-64 lg:tw-h-96 lg:tw-w-[400px] tw-h-auto tw-object-contain"
+        >
+      </div>
+    {% endif %}
+    
+    {% comment %} Text Content with Secondary Image {% endcomment %}
+    <div class="text-content-wrapper {% if section.settings.right_text %}lg:tw-w-3/5{% else %}tw-w-full{% endif %} tw-relative">
+      {% comment %} Secondary Image in Text Indent - Outside h1 {% endcomment %}
+      {% if section.settings.secondary_image != blank and section.settings.indent == true %}
+        <div class="secondary-image-wrapper tw-absolute tw-top-0 tw-left-0 tw-z-10">
+          <img 
+            src="{{ section.settings.secondary_image | image_url: width: 150 }}"
+            srcset="{{ section.settings.secondary_image | image_url: width: 75 }} 75w,
+                    {{ section.settings.secondary_image | image_url: width: 150 }} 150w,
+                    {{ section.settings.secondary_image | image_url: width: 300 }} 300w"
+            sizes="150px"
+            alt="{{ section.settings.secondary_image.alt | default: 'Decorative image' }}"
+            width="150"
+            height="{{ 150 | divided_by: section.settings.secondary_image.aspect_ratio | round }}"
+            loading="lazy"
+            class="secondary-image tw-w-[50px] lg:tw-w-[75px] xl:tw-w-[75px] tw-h-auto tw-object-contain"
+          >
+        </div>
+      {% endif %}
+      
+      <h1 id="feature-heading" class="feature-heading {% if section.settings.indent == true %}has-indent{% endif %} {% if section.settings.indent == true %}tw-text-left{% elsif section.settings.justify_text == true %}tw-text-justify{% else %}{% if section.settings.right_text %}tw-text-left{% else %}tw-text-center{% endif %}{% endif %} {% if section.settings.small_text == true %}h2{% endif %}">
+        {{ section.settings.feature_heading | replace: '<i>', '<i class="animate-word">' }}
+      </h1>
+    </div>
+  </div>
+</div>
+
+<style>
+  .feature-text-section {
+    position: relative;
+  }
+  
+  /* Ensure the heading displays as block for text-indent to work */
+  .feature-heading {
+    display: block !important;
+  }
+  
+  /* Position text wrapper for absolute image positioning */
+  .text-content-wrapper {
+    position: relative;
+  }
+  
+  /* Apply text indent when enabled */
+  .feature-heading.has-indent {
+    text-indent: 100px !important;
+    /* Text indent only works with left or justify alignment */
+  }
+  
+  @media (min-width: 1024px) {
+    .feature-heading.has-indent {
+      text-indent: 200px !important;
+    }
+  }
+  
+  /* Override any conflicting text-align when indent is enabled */
+  .feature-heading.has-indent.text-center {
+    text-align: left !important;
+  }
+  
+  /* When both indent and justify are enabled */
+  .feature-heading.has-indent.text-justify {
+    text-align: justify !important;
+    text-indent: 100px !important;
+  }
+  
+  @media (min-width: 1024px) {
+    .feature-heading.has-indent.text-justify {
+      text-indent: 200px !important;
+    }
+  }
+  
+  /* .secondary-image-wrapper {
+    transform: translateX(20px) translateY(10px);
+  } */
+  
+  @media (min-width: 1024px) {
+    .secondary-image-wrapper {
+      transform: translateX(30px) translateY(10px);
+    }
+  }
+  
+  /* Fallback for Tailwind text-indent class if it exists */
+  .text-indent {
+    text-indent: 100px !important;
+  }
+  
+  @media (min-width: 1024px) {
+    .text-indent {
+      text-indent: 200px !important;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Feature Text",
+  "settings": [
+    {
+      "type": "text",
+      "id": "feature_heading",
+      "label": "Heading Text",
+      "default": "Your Feature Heading"
+    },
+    {
+      "type": "image_picker",
+      "id": "main_image",
+      "label": "Main Image (Left side)",
+      "info": "Optional. Appears to the left of the text on desktop."
+    },
+    {
+      "type": "image_picker",
+      "id": "secondary_image",
+      "label": "Secondary Image (In text indent)",
+      "info": "Optional. Appears in the text indent. Only visible when 'Indent Text' is enabled."
+    },
+    {
+      "type": "checkbox",
+      "id": "indent",
+      "label": "Indent Text",
+      "info": "Creates space for the secondary image"
+    },
+    {
+      "type": "checkbox",
+      "id": "right_text",
+      "label": "Right Align Layout",
+      "info": "Aligns the entire layout to the right"
+    },
+    {
+      "type": "checkbox",
+      "id": "justify_text",
+      "label": "Justify Text"
+    },
+    {
+      "type": "checkbox",
+      "id": "small_text",
+      "label": "Small Text"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Feature Text"
+    }
+  ]
+}
+{% endschema %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    if (window.innerWidth >= 1024) { // Adjust the width as needed for your breakpoint
+      gsap.registerPlugin(SplitText);
+      // Select all italic words within the heading
+      const words = document.querySelectorAll('.animate-word');
+      words.forEach(word => {
+        // Split the text into characters
+        const splitText = new SplitText(word, { type: "chars" });
+        const chars = splitText.chars;
+        // Animate each character one by one
+        gsap.from(chars, {
+          opacity: 0,
+          y: 20,
+          duration: 1,
+          stagger: 0.05, // Delay between each character animation
+          ease: "power2.out"
+        });
+      });
+    }
+  });
+</script>

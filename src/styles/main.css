@@ -1,0 +1,153 @@
+/* Tailwind CSS Directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Base Styles */
+@layer base {
+  /* Shopify-specific resets and base styles */
+  html {
+    @apply tw-scroll-smooth;
+  }
+
+  /* Typography defaults using Neue Montreal */
+  body {
+    @apply tw-font-neue-montreal;
+  }
+}
+
+/* Custom Components */
+@layer components {
+  /* Button Components */
+  .tw-btn-primary {
+    @apply tw-inline-flex tw-items-center tw-justify-center tw-px-6 tw-py-3 
+           tw-font-medium tw-text-white tw-bg-black tw-rounded-xl 
+           tw-transition-all tw-duration-300 hover:tw-bg-gray-800
+           focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-offset-2 focus:tw-ring-black;
+  }
+
+  .tw-btn-secondary {
+    @apply tw-inline-flex tw-items-center tw-justify-center tw-px-6 tw-py-3 
+           tw-font-medium tw-text-black tw-bg-gray-100 tw-rounded-xl 
+           tw-transition-all tw-duration-300 hover:tw-bg-gray-200
+           focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-offset-2 focus:tw-ring-gray-400;
+  }
+
+  /* Container Components */
+  .tw-container-narrow {
+    @apply tw-max-w-4xl tw-mx-auto tw-px-4 sm:tw-px-6 lg:tw-px-8;
+  }
+
+  .tw-container-wide {
+    @apply tw-max-w-7xl tw-mx-auto tw-px-4 sm:tw-px-6 lg:tw-px-8;
+  }
+
+  /* Card Components */
+  .tw-card {
+    @apply tw-bg-white tw-rounded-lg tw-shadow-sm tw-overflow-hidden 
+           tw-transition-all tw-duration-300 hover:tw-shadow-md;
+  }
+
+  /* Section Spacing */
+  .tw-section {
+    @apply tw-py-12 md:tw-py-16 lg:tw-py-20;
+  }
+
+  /* Grid Layouts */
+  .tw-product-grid {
+    @apply tw-grid tw-grid-cols-2 md:tw-grid-cols-3 lg:tw-grid-cols-4 tw-gap-4 md:tw-gap-6;
+  }
+
+  /* GSAP Animation Classes */
+  .tw-gsap-fade {
+    @apply tw-opacity-0;
+  }
+
+  .tw-gsap-slide-up {
+    @apply tw-opacity-0 tw-translate-y-8;
+  }
+
+  .tw-gsap-slide-left {
+    @apply tw-opacity-0 tw-translate-x-8;
+  }
+
+  .tw-gsap-scale {
+    @apply tw-opacity-0 tw-scale-95;
+  }
+}
+
+/* Custom Utilities */
+@layer utilities {
+  /* Text Utilities */
+  .tw-text-balance {
+    text-wrap: balance;
+  }
+
+  /* Aspect Ratios */
+  .tw-aspect-product {
+    aspect-ratio: 3/4;
+  }
+
+  .tw-aspect-collection {
+    aspect-ratio: 16/9;
+  }
+
+  /* Z-Index Scale */
+  .tw-z-dropdown {
+    z-index: 1000;
+  }
+
+  .tw-z-sticky {
+    z-index: 1020;
+  }
+
+  .tw-z-fixed {
+    z-index: 1030;
+  }
+
+  .tw-z-modal-backdrop {
+    z-index: 1040;
+  }
+
+  .tw-z-modal {
+    z-index: 1050;
+  }
+
+  .tw-z-popover {
+    z-index: 1060;
+  }
+
+  .tw-z-tooltip {
+    z-index: 1070;
+  }
+
+  /* Custom Shadows */
+  .tw-shadow-product {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .tw-shadow-dropdown {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Custom Transitions */
+  .tw-transition-theme {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+}
+
+/* Responsive Utilities */
+@media (max-width: 749px) {
+  .tw-mobile-full {
+    @apply tw-w-full tw-max-w-none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .tw-no-print {
+    @apply tw-hidden;
+  }
+}
