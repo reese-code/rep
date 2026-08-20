@@ -1,0 +1,242 @@
+.apg {
+  --apg-black: #0D0D0F;
+  --apg-panel: #1B1B1D;
+  --apg-border: #3A3A3D;
+  --apg-chalk: #F5F5F2;
+  --apg-gray: #7C8085;
+  --apg-red: #D62828;
+
+  background: var(--apg-black);
+  color: var(--apg-chalk);
+  padding: 48px 2rem;
+}
+
+.apg__heading {
+  max-width: 120rem;
+  margin: 0 auto 2.4rem;
+  font-size: 2.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  color: var(--apg-chalk);
+}
+
+.apg__setup-note {
+  max-width: 120rem;
+  margin: 0 auto;
+  color: var(--apg-gray);
+  font-size: 1.3rem;
+}
+
+.apg__grid {
+  max-width: 120rem;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: 1.6rem;
+}
+
+.apg-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  background: var(--apg-panel);
+  border: 0.1rem solid var(--apg-border);
+  border-radius: 0.3rem;
+  padding: 0;
+  cursor: default;
+  color: var(--apg-chalk);
+  font: inherit;
+  overflow: hidden;
+}
+.apg-card--has-model {
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.apg-card--has-model:hover { border-color: var(--apg-gray); }
+.apg-card:disabled { opacity: 0.55; }
+
+.apg-card__media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: var(--apg-black);
+}
+.apg-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.apg-card__badge {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(13, 13, 15, 0.85);
+  border: 0.1rem solid var(--apg-border);
+  color: var(--apg-chalk);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+}
+
+.apg-card__title {
+  padding: 1.2rem 1.4rem 0.2rem;
+  font-size: 1.4rem;
+}
+.apg-card__price {
+  padding: 0 1.4rem 1.4rem;
+  color: var(--apg-gray);
+  font-size: 1.3rem;
+}
+
+/* --- Quick view modal --- */
+.apg-modal {
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0;
+  width: min(96vw, 100rem);
+  max-height: 90vh;
+  background: var(--apg-panel);
+  color: var(--apg-chalk);
+}
+.apg-modal::backdrop {
+  background: rgba(0, 0, 0, 0.75);
+}
+.apg-modal[open] {
+  display: flex;
+}
+
+.apg-modal__close {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  z-index: 2;
+  width: 3.6rem;
+  height: 3.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 13, 15, 0.7);
+  border: 0.1rem solid var(--apg-border);
+  border-radius: 999px;
+  color: var(--apg-chalk);
+  cursor: pointer;
+}
+
+.apg-modal__body {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.apg-modal__viewer {
+  position: relative;
+  flex: 1 1 60%;
+  background: var(--apg-black);
+  min-height: 40rem;
+}
+.apg-modal__viewer model-viewer {
+  width: 100%;
+  height: 100%;
+  --poster-color: transparent;
+}
+
+.apg-globe-btn {
+  position: absolute;
+  right: 1.6rem;
+  bottom: 1.6rem;
+  width: 5.2rem;
+  height: 5.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--apg-chalk);
+  color: var(--apg-black);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.4);
+}
+.apg-tooltip {
+  position: absolute;
+  bottom: calc(100% + 0.8rem);
+  right: 0;
+  white-space: nowrap;
+  background: var(--apg-black);
+  color: var(--apg-chalk);
+  border: 0.1rem solid var(--apg-border);
+  font-size: 1.2rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.2rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.4rem);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.apg-globe-btn:hover .apg-tooltip,
+.apg-globe-btn:focus-visible .apg-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.apg-modal__panel {
+  flex: 1 1 40%;
+  padding: 3.2rem 2.8rem;
+  overflow-y: auto;
+}
+.apg-modal__title {
+  font-size: 2.2rem;
+  text-transform: uppercase;
+  margin: 0 0 0.6rem;
+}
+.apg-modal__price {
+  color: var(--apg-gray);
+  font-size: 1.5rem;
+  margin-bottom: 1.6rem;
+}
+.apg-modal__description {
+  font-size: 1.4rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+.apg-modal__addons h4 {
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--apg-gray);
+  margin-bottom: 1rem;
+}
+.apg-option { margin-bottom: 1.2rem; }
+.apg-option label {
+  display: block;
+  font-size: 1.2rem;
+  color: var(--apg-gray);
+  margin-bottom: 0.5rem;
+}
+.apg-option select {
+  width: 100%;
+  background: var(--apg-black);
+  border: 0.1rem solid var(--apg-border);
+  border-radius: 0.2rem;
+  color: var(--apg-chalk);
+  font-size: 1.5rem;
+  padding: 1rem 1.1rem;
+}
+.apg-modal__link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--apg-chalk);
+  text-decoration: underline;
+  font-size: 1.3rem;
+}
+
+@media screen and (max-width: 900px) {
+  .apg-modal__body { flex-direction: column; overflow-y: auto; }
+  .apg-modal__viewer { min-height: 32rem; }
+}
