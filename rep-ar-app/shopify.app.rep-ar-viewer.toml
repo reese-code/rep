@@ -1,0 +1,21 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+#
+# Extension-only app: no backend, no admin UI. embedded = false so Shopify
+# admin doesn't try to load an app-home iframe that doesn't exist.
+
+client_id = "899fde4042fb6e76bb742dfe98f9d169"
+name = "REP AR Viewer"
+application_url = "https://shopify.dev/apps/default-app-home"
+embedded = false
+handle = "rep-ar-viewer"
+
+[build]
+
+[webhooks]
+api_version = "2025-01"
+
+[access_scopes]
+scopes = ""
+
+[auth]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]

@@ -1,0 +1,109 @@
+{%- comment -%}
+  AR Viewer — App Block
+  ---------------------
+  Renders a real <model-viewer> AR experience sourced from a product's 3D
+  model media (Shopify auto-generates the USDZ from the uploaded GLB, so
+  neither file has to be hosted by this app). Tapping the AR button
+  auto-selects the right native path for the device it's running on — AR
+  Quick Look (ARKit) on iOS Safari, Scene Viewer/WebXR on Android Chrome —
+  with no manual platform picker. This is the entire feature; there is no
+  admin UI, no other app functionality.
+
+  Setup: pick a product below whose 3D model media is, in order:
+    1. the cube
+    2. (optional) the cube + pyramid together
+  Upload both .glb files to that product's media in that order.
+{%- endcomment -%}
+
+{%- assign ar_models = block.settings.ar_product.media | where: 'media_type', 'model' -%}
+{%- assign cube_model = ar_models[0] -%}
+{%- assign pyramid_model = ar_models[1] -%}
+{%- assign cube_glb = cube_model.sources | where: 'format', 'glb' | first -%}
+{%- assign cube_usdz = cube_model.sources | where: 'format', 'usdz' | first -%}
+{%- assign pyramid_glb = pyramid_model.sources | where: 'format', 'glb' | first -%}
+{%- assign pyramid_usdz = pyramid_model.sources | where: 'format', 'usdz' | first -%}
+
+<div
+  class="ar-viewer"
+  id="ar-viewer-{{ block.id }}"
+  {{ block.shopify_attributes }}
+>
+  <div class="ar-viewer__container">
+    {%- if block.settings.heading != blank -%}
+      <h2 class="ar-viewer__heading">{{ block.settings.heading }}</h2>
+    {%- endif -%}
+    {%- if block.settings.subheading != blank -%}
+      <p class="ar-viewer__subheading">{{ block.settings.subheading }}</p>
+    {%- endif -%}
+
+    {%- if cube_model and cube_glb -%}
+      <div class="ar-viewer__stage" data-av-root>
+        <div class="ar-viewer__status" data-av-status>Checking this device for AR support…</div>
+
+        <model-viewer
+          data-av-viewer
+          class="ar-viewer__model"
+          src="{{ cube_glb.url }}"
+          {%- if cube_usdz %} ios-src="{{ cube_usdz.url }}"{% endif %}
+          {%- if pyramid_glb %} data-pyramid-src="{{ pyramid_glb.url }}"{% endif %}
+          {%- if pyramid_usdz %} data-pyramid-ios-src="{{ pyramid_usdz.url }}"{% endif %}
+          alt="{{ cube_model.alt | default: 'A cube, with an optional pyramid, shown at real-world scale' }}"
+          ar
+          ar-modes="webxr scene-viewer quick-look"
+          camera-controls
+          auto-rotate
+          shadow-intensity="1"
+          exposure="1"
+        >
+          <button slot="ar-button" type="button" class="ar-viewer__btn ar-viewer__btn--primary ar-viewer__ar-btn">
+            View in Your Space
+          </button>
+        </model-viewer>
+
+        {%- if pyramid_glb -%}
+          <button type="button" class="ar-viewer__btn ar-viewer__btn--secondary" data-av-action="toggle-pyramid">
+            Add Pyramid
+          </button>
+        {%- endif -%}
+      </div>
+
+      {{ 'ar-viewer.css' | asset_url | stylesheet_tag }}
+      <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+      <script src="{{ 'ar-viewer.js' | asset_url }}" defer></script>
+    {%- else -%}
+      {%- if request.design_mode -%}
+        <div class="ar-viewer__setup-note">
+          Pick a product above with a 3D model uploaded to its media (Product → Media → Add media → 3D model).
+          Upload the cube .glb first; optionally upload the cube+pyramid .glb second to enable the pyramid toggle.
+        </div>
+      {%- endif -%}
+    {%- endif -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "AR Viewer",
+  "target": "section",
+  "settings": [
+    {
+      "type": "product",
+      "id": "ar_product",
+      "label": "Product with AR model(s)",
+      "info": "Its 3D model media, in order: 1) the cube, 2) optionally the cube + pyramid together."
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "View in Your Space"
+    },
+    {
+      "type": "textarea",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Tap below to place it in your space with your camera."
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,17 @@
+{
+  "name": "rep-ar-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "shopify app dev",
+    "deploy": "shopify app deploy",
+    "config:link": "shopify app config link",
+    "info": "shopify app info"
+  },
+  "devDependencies": {
+    "@shopify/cli": "^3.93.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
