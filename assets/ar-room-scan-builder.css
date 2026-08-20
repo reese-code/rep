@@ -1,0 +1,249 @@
+/**
+ * Room-Aware Builder (AR) — Section Styles
+ * Design system: matte steel black, chalk white, gunmetal panels, red
+ * accent reserved for warnings — matches REP Fitness's industrial /
+ * spec-sheet visual identity. Fully self-contained: does not depend on
+ * theme-specific utility classes, so it drops into any section/page.
+ */
+
+.ar-room-scan-builder {
+  --rsb-steel-black: #0D0D0F;
+  --rsb-gunmetal: #3A3A3D;
+  --rsb-chalk: #F5F5F2;
+  --rsb-steel-gray: #7C8085;
+  --rsb-warn-red: #D62828;
+  --rsb-ok-green: #4C9A6A;
+
+  background: var(--rsb-steel-black);
+  color: var(--rsb-chalk);
+  padding: 48px 0;
+}
+
+.ar-room-scan-builder__container {
+  max-width: 120rem;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.ar-room-scan-builder__tag {
+  font-size: 1.2rem;
+  color: var(--rsb-steel-gray);
+  padding-bottom: 1.6rem;
+  border-bottom: 0.1rem solid #232325;
+  margin-bottom: 2.4rem;
+}
+
+.ar-room-scan-builder__inner {
+  max-width: 48rem;
+}
+
+.ar-room-scan-builder__eyebrow {
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rsb-warn-red);
+  margin-bottom: 0.8rem;
+}
+
+.ar-room-scan-builder__heading {
+  font-size: 2.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  margin-bottom: 1rem;
+  color: var(--rsb-chalk);
+}
+
+.ar-room-scan-builder__subheading {
+  color: var(--rsb-steel-gray);
+  font-size: 1.4rem;
+  margin-bottom: 2.4rem;
+}
+
+.ar-room-scan-builder__step { display: none; }
+.ar-room-scan-builder__step.is-active { display: block; }
+
+.ar-room-scan-builder__panel {
+  background: #1B1B1D;
+  border: 0.1rem solid #2A2A2C;
+  border-radius: 0.2rem;
+  padding: 1.8rem;
+  margin-bottom: 1.4rem;
+}
+
+.ar-room-scan-builder__panel-label {
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--rsb-steel-gray);
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.ar-room-scan-builder__field { margin-bottom: 1.4rem; }
+.ar-room-scan-builder__field label {
+  display: block;
+  font-size: 1.2rem;
+  color: var(--rsb-steel-gray);
+  margin-bottom: 0.6rem;
+}
+.ar-room-scan-builder__field input,
+.ar-room-scan-builder__field select {
+  width: 100%;
+  background: #0D0D0F;
+  border: 0.1rem solid var(--rsb-gunmetal);
+  border-radius: 0.2rem;
+  color: var(--rsb-chalk);
+  font-size: 1.6rem;
+  padding: 1.1rem 1.2rem;
+  appearance: auto;
+}
+
+.ar-room-scan-builder__btn {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 1.4rem;
+  letter-spacing: 0.02em;
+  border-radius: 0.2rem;
+  padding: 1.2rem 2rem;
+  border: 0.1rem solid transparent;
+  transition: opacity 0.15s ease;
+}
+.ar-room-scan-builder__btn:hover { opacity: 0.85; }
+.ar-room-scan-builder__btn--primary {
+  background: var(--rsb-chalk);
+  color: var(--rsb-steel-black);
+}
+.ar-room-scan-builder__btn--secondary {
+  background: transparent;
+  color: var(--rsb-chalk);
+  border-color: var(--rsb-gunmetal);
+}
+
+.ar-room-scan-builder__xr-status {
+  font-size: 1.2rem;
+  padding: 1.2rem 1.4rem;
+  border-radius: 0.2rem;
+  margin-bottom: 1.4rem;
+  background: #1B1B1D;
+  border: 0.1rem solid var(--rsb-gunmetal);
+  color: var(--rsb-steel-gray);
+}
+.ar-room-scan-builder__xr-status[data-status="unsupported"] {
+  background: rgba(214, 40, 40, 0.08);
+  color: #F4A6A6;
+  border-color: rgba(214, 40, 40, 0.3);
+}
+.ar-room-scan-builder__xr-status[data-status="supported"] {
+  background: rgba(76, 154, 106, 0.1);
+  color: #8FD1A8;
+  border-color: rgba(76, 154, 106, 0.3);
+}
+
+.ar-room-scan-builder__quicklook-copy { font-size: 1.3rem; color: var(--rsb-chalk); margin-bottom: 1.4rem; }
+.ar-room-scan-builder__quicklook-btn { display: block; margin-bottom: 1.2rem; }
+.ar-room-scan-builder__quicklook-disclaimer { font-size: 1.1rem; color: var(--rsb-steel-gray); line-height: 1.5; }
+
+.ar-room-scan-builder__spec-sheet {
+  border: 0.1rem solid var(--rsb-gunmetal);
+  border-radius: 0.2rem;
+  overflow: hidden;
+}
+.ar-room-scan-builder__spec-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 1.1rem 1.4rem;
+  border-bottom: 0.1rem solid #232325;
+  font-size: 1.3rem;
+}
+.ar-room-scan-builder__spec-row:last-child { border-bottom: none; }
+.ar-room-scan-builder__spec-row span:first-child { color: var(--rsb-steel-gray); }
+.ar-room-scan-builder__spec-row span:last-child { font-weight: 600; letter-spacing: 0.02em; }
+
+.ar-room-scan-builder__verdict {
+  margin-top: 1.2rem;
+  border-radius: 0.2rem;
+  padding: 1.4rem;
+  font-size: 1.3rem;
+}
+.ar-room-scan-builder__verdict[data-state="ok"] {
+  background: rgba(76, 154, 106, 0.12);
+  border: 0.1rem solid rgba(76, 154, 106, 0.4);
+  color: #8FD1A8;
+}
+.ar-room-scan-builder__verdict[data-state="warn"],
+.ar-room-scan-builder__verdict[data-state="fail"] {
+  background: rgba(214, 40, 40, 0.1);
+  border: 0.1rem solid rgba(214, 40, 40, 0.45);
+  color: #F4A6A6;
+}
+.ar-room-scan-builder__verdict-title {
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 0.6rem;
+}
+.ar-room-scan-builder__suggestion { margin-top: 0.8rem; color: var(--rsb-chalk); }
+
+.ar-room-scan-builder__room-canvas {
+  background: #0D0D0F;
+  border: 0.1rem dashed var(--rsb-gunmetal);
+  border-radius: 0.2rem;
+  aspect-ratio: 16 / 10;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.ar-room-scan-builder__canvas-item {
+  position: absolute;
+  background: rgba(245, 245, 242, 0.08);
+  border: 0.1rem solid var(--rsb-steel-gray);
+  border-radius: 0.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--rsb-chalk);
+  text-align: center;
+  padding: 0.2rem;
+}
+.ar-room-scan-builder__canvas-item.is-rack {
+  background: rgba(214, 40, 40, 0.18);
+  border-color: var(--rsb-warn-red);
+}
+.ar-room-scan-builder__canvas-caption {
+  font-size: 1.1rem;
+  color: var(--rsb-steel-gray);
+  text-align: center;
+  margin-top: 0.8rem;
+}
+
+.ar-room-scan-builder__reco-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0D0D0F;
+  border: 0.1rem solid var(--rsb-gunmetal);
+  border-radius: 0.2rem;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1rem;
+}
+.ar-room-scan-builder__reco-name { font-size: 1.3rem; color: var(--rsb-chalk); }
+.ar-room-scan-builder__reco-meta { font-size: 1.1rem; color: var(--rsb-steel-gray); margin-top: 0.2rem; }
+
+.ar-room-scan-builder__note {
+  font-size: 1.1rem;
+  color: var(--rsb-steel-gray);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ar-room-scan-builder * { transition: none !important; }
+}
+
+@media screen and (max-width: 749px) {
+  .ar-room-scan-builder__heading { font-size: 2.2rem; }
+}
