@@ -1,3 +1,12 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
 {
   "sections": {
     "main": {
@@ -17,7 +26,7 @@
             "slideshow_mobile_controls_style": "dots",
             "thumbnail_position": "right",
             "thumbnail_width": 44,
-            "aspect_ratio": "1\/1.25",
+            "aspect_ratio": "1/1.25",
             "media_radius": 0,
             "extend_media": true,
             "constrain_to_viewport": false,
@@ -98,7 +107,7 @@
                 "text_xrnftG": {
                   "type": "text",
                   "settings": {
-                    "text": "<h1>{{ closest.product.title }}<\/h1>",
+                    "text": "<h1>{{ closest.product.title }}</h1>",
                     "width": "100%",
                     "max_width": "normal",
                     "alignment": "left",
@@ -309,7 +318,7 @@
                       "type": "text",
                       "name": "t:names.text",
                       "settings": {
-                        "text": "<p>Reliable shipping<\/p>",
+                        "text": "<p>Reliable shipping</p>",
                         "width": "fit-content",
                         "max_width": "normal",
                         "alignment": "left",
@@ -391,7 +400,7 @@
                       "type": "text",
                       "name": "t:names.text",
                       "settings": {
-                        "text": "<p>Flexible returns<\/p>",
+                        "text": "<p>Flexible returns</p>",
                         "width": "fit-content",
                         "max_width": "normal",
                         "alignment": "left",
@@ -463,7 +472,7 @@
         }
       },
       "settings": {
-        "product": "{{ closest.product }}",
+        "product": "power-rack",
         "content_width": "content-center-aligned",
         "desktop_media_position": "left",
         "equal_columns": false,
@@ -474,6 +483,53 @@
         "padding-block-end": 0
       }
     },
+    "rack_builder_mCngCH": {
+      "type": "rack-builder",
+      "blocks": {
+        "color_swatch_qmrNFg": {
+          "type": "color_swatch",
+          "settings": {
+            "label": "Black",
+            "color": "#1a1a1a"
+          }
+        },
+        "color_swatch_CqxyAa": {
+          "type": "color_swatch",
+          "settings": {
+            "label": "Red",
+            "color": "#b91c1c"
+          }
+        },
+        "color_swatch_pjVemW": {
+          "type": "color_swatch",
+          "settings": {
+            "label": "Blue",
+            "color": "#1d4ed8"
+          }
+        },
+        "color_swatch_HRPYkV": {
+          "type": "color_swatch",
+          "settings": {
+            "label": "Silver",
+            "color": "#c0c0c0"
+          }
+        }
+      },
+      "block_order": [
+        "color_swatch_qmrNFg",
+        "color_swatch_CqxyAa",
+        "color_swatch_pjVemW",
+        "color_swatch_HRPYkV"
+      ],
+      "name": "Rack Builder (3D)",
+      "settings": {
+        "product": "power-rack",
+        "color_scheme": "scheme-58084d4c-a86e-4d0a-855e-a0966e5043f7",
+        "bar_product": "weight-bar",
+        "weight_plates_product": "weight-plate-set",
+        "bench_product": "adjustable-bench"
+      }
+    },
     "product_recommendations_qggXJq": {
       "type": "product-recommendations",
       "blocks": {
@@ -481,7 +537,7 @@
           "type": "text",
           "name": "t:names.header",
           "settings": {
-            "text": "<h2>You may also like <\/h2>",
+            "text": "<h2>You may also like </h2>",
             "width": "fit-content",
             "max_width": "normal",
             "alignment": "left",
@@ -680,6 +736,7 @@
   },
   "order": [
     "main",
+    "rack_builder_mCngCH",
     "product_recommendations_qggXJq"
   ]
 }
