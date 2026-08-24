@@ -1,0 +1,1269 @@
+{%- comment -%}
+  Rack Builder — 3D configurator demo
+  -----------------------------------
+  Renders a Three.js viewer for a single product's .glb model (loaded from
+  Shopify's native "3D model" media type — upload the .glb to the product
+  in admin under Media, no separate file hosting needed). The model is
+  expected to contain these named objects, matching the Blender export:
+
+    rack_frame     - always visible, material "Rack_Steel" recolored by
+                      the swatch buttons
+    bar             - toggled by the "Add Bar" checkbox
+    weight_plates   - toggled by the "Add Weights" checkbox
+    bench           - toggled by the "Add Bench" checkbox
+
+  Color swatches and add-ons are backed by real Shopify data, configured in
+  admin rather than hardcoded here:
+
+  - Color: give the main product a variant option named exactly "Color"
+    (Product > Variants) with values matching each swatch block's Label
+    below (e.g. "Black", "Red"). Clicking a swatch both recolors the 3D
+    model AND switches to the matching real variant (price/availability
+    included). If the option doesn't exist yet, or a color doesn't have a
+    matching variant, the swatch still recolors the model but can't change
+    what gets added to cart. Any other options the product has (Size,
+    etc.) render as native-styled dropdowns below the swatches.
+  - Add-ons: pick a real product for "Bar product" / "Weight plates
+    product" / "Bench product" in the section settings below (each can be
+    a plain, separately-sold product). Checking the box adds that
+    product's first available variant as its own cart line item at its
+    real price. Leave a picker blank to keep that toggle as a visual-only
+    3D preview with no cart effect.
+
+  Color swatches, add-on toggles, the variant dropdown, and the quantity
+  selector all reuse the same class names/components as this theme's
+  built-in variant picker and quantity selector (see
+  snippets/variant-main-picker.liquid and snippets/quantity-selector.liquid)
+  so they render with the theme's actual look — colors, radius, and border
+  all come from the theme's own design settings, not custom CSS here.
+{%- endcomment -%}
+
+{%- assign rb_product = section.settings.product -%}
+{%- assign rb_variant = rb_product.selected_or_first_available_variant -%}
+{%- assign rb_model = rb_product.media | where: 'media_type', 'model' | first -%}
+{%- assign rb_glb = rb_model.sources | where: 'format', 'glb' | first -%}
+{%- assign rb_form_id = rb_product.id | append: '-rack-builder-form' -%}
+
+{%- assign rb_color_option_index = -1 -%}
+{%- for option in rb_product.options_with_values -%}
+  {%- if option.name == 'Color' -%}
+    {%- assign rb_color_option_index = forloop.index0 -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- assign rb_initial_color_value = '' -%}
+{%- if rb_color_option_index >= 0 -%}
+  {%- assign rb_initial_color_value = rb_variant.options[rb_color_option_index] -%}
+{%- endif -%}
+
+{%- assign rb_checked_swatch_index = -1 -%}
+{%- if rb_initial_color_value != blank -%}
+  {%- for block in section.blocks -%}
+    {%- if block.type == 'color_swatch' and block.settings.label == rb_initial_color_value -%}
+      {%- assign rb_checked_swatch_index = forloop.index0 -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- assign rb_bar_variant = section.settings.bar_product.selected_or_first_available_variant -%}
+{%- assign rb_weight_plates_variant = section.settings.weight_plates_product.selected_or_first_available_variant -%}
+{%- assign rb_bench_variant = section.settings.bench_product.selected_or_first_available_variant -%}
+
+{%- assign rb_button_classes = 'rack-builder__submit button' -%}
+{%- if section.settings.button_style == 'secondary' -%}
+  {%- assign rb_button_classes = rb_button_classes | append: ' button-secondary' -%}
+{%- endif -%}
+{%- assign rb_button_classes = rb_button_classes | append: ' rack-builder__submit--' | append: section.settings.button_size -%}
+{%- if section.settings.button_width == 'full' -%}
+  {%- assign rb_button_classes = rb_button_classes | append: ' rack-builder__submit--full' -%}
+{%- endif -%}
+
+{% stylesheet %}
+  .rack-builder {
+    padding: 2rem 1rem;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+
+  /*
+    rack-builder-component (class rack-builder__wrap) is a custom element
+    sitting between .rack-builder and its viewer/panel children. Custom
+    elements default to display:inline, so the grid has to live here, on
+    the element that's actually the direct parent of .rack-builder__viewer
+    and .rack-builder__panel — putting it on .rack-builder itself just
+    grids a single inline blob and both children stack inside it.
+  */
+  .rack-builder__wrap {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--rb-gap-viewer-panel, 32px);
+  }
+
+  @media screen and (min-width: 750px) {
+    .rack-builder__wrap {
+      grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr);
+      align-items: start;
+    }
+  }
+
+  .rack-builder__viewer {
+    position: relative;
+    height: 100dvh;
+    max-height: 900px;
+    width: 100%;
+    background: var(--color-background-alt, #f1f1ef);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .rack-builder__canvas-wrap {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .rack-builder__canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .rack-builder__loading {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1;
+  }
+
+  .rack-builder__expand {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: #111;
+    cursor: pointer;
+  }
+
+  /*
+    A fullscreen native <dialog> holding the SAME canvas + panel elements
+    (moved here via JS on open, moved back on close — not cloned) so the
+    same Three.js renderer, event listeners, and form controls just work
+    in both places without duplicating any of them.
+  */
+  .rack-builder__fullscreen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: var(--color-background, #fff);
+  }
+
+  .rack-builder__fullscreen::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .rack-builder__fullscreen-stage {
+    position: absolute;
+    inset: 0;
+  }
+
+  .rack-builder__fullscreen-stage .rack-builder__viewer {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .rack-builder__fullscreen-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: #111;
+    cursor: pointer;
+  }
+
+  .rack-builder__fullscreen-close .svg-wrapper svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rack-builder__fullscreen-toggle {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2xs, 0.4rem);
+    padding: var(--padding-md) var(--padding-lg);
+    border: none;
+    border-radius: 999px;
+    background: var(--color-background, #fff);
+    box-shadow: var(--shadow-drawer, 0 4px 16px rgba(0, 0, 0, 0.2));
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+
+  .rack-builder__fullscreen-toggle .svg-wrapper svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rack-builder__fullscreen-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    width: min(420px, 100vw);
+    height: 100%;
+    overflow-y: auto;
+    padding: var(--padding-2xl, 24px);
+    background: var(--color-background, #fff);
+    box-shadow: var(--shadow-drawer, -4px 0 16px rgba(0, 0, 0, 0.15));
+    transform: translateX(100%);
+    transition: transform var(--animation-speed, 0.3s) var(--animation-easing, ease);
+  }
+
+  .rack-builder__fullscreen-panel[data-open] {
+    transform: translateX(0);
+  }
+
+  .rack-builder__panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rb-gap-groups, 24px);
+  }
+
+  .rack-builder__title {
+    margin: 0 0 0.25rem;
+    font-family: var(--rb-title-font, var(--font-heading--family));
+    font-size: var(--rb-title-size, 1.25rem);
+  }
+
+  .rack-builder__price {
+    font-family: var(--rb-body-font, var(--font-body--family));
+    font-size: var(--rb-body-size, 1.125rem);
+    font-weight: 600;
+  }
+
+  .rack-builder__body-text {
+    font-family: var(--rb-body-font, var(--font-body--family));
+    font-size: var(--rb-body-size, 1rem);
+  }
+
+  .rack-builder__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rb-gap-groups, 24px);
+  }
+
+  /* Matches the theme's own sticky-cart-bar look: a light pill-shaped
+     quantity stepper next to a full-bleed rounded Add to Cart button,
+     both the same height, never wider than the viewport. */
+  .rack-builder__cart-row {
+    display: flex;
+    align-items: stretch;
+    gap: var(--padding-sm);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .rack-builder__quantity {
+    --quantity-selector-width: 96px;
+    --minimum-touch-target: 44px;
+
+    flex: 0 0 auto;
+    min-width: 0;
+    border: none;
+    background: var(--color-background-alt, #f1f1ef);
+    border-radius: var(--style-border-radius-buttons, 16px);
+  }
+
+  .rack-builder__quantity:hover {
+    background: var(--color-background-alt, #f1f1ef);
+  }
+
+  .rack-builder__submit {
+    cursor: pointer;
+    flex: 0 0 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rack-builder__submit-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap-2xs, 0.4em);
+    min-width: 0;
+  }
+
+  .rack-builder__submit-content .svg-wrapper {
+    display: flex;
+    flex-shrink: 0;
+  }
+
+  .rack-builder__submit-content .svg-wrapper svg {
+    width: 1.1em;
+    height: 1.1em;
+  }
+
+  .rack-builder__submit--small {
+    padding: var(--padding-sm) var(--padding-lg);
+    font-size: 0.875rem;
+  }
+
+  .rack-builder__submit--medium {
+    padding: var(--padding-md) var(--padding-xl);
+    font-size: 1rem;
+  }
+
+  .rack-builder__submit--large {
+    padding: var(--padding-lg) var(--padding-xl);
+    font-size: 1.125rem;
+  }
+
+  .rack-builder__submit--full {
+    flex: 1 1 0%;
+  }
+
+  .rack-builder__note {
+    font-size: 0.8rem;
+    color: #666;
+  }
+
+  .rack-builder__details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rb-gap-groups, 24px);
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--rb-gap-groups, 24px);
+  }
+
+  .rack-builder__details-heading {
+    margin: 0 0 0.5rem;
+    font-family: var(--rb-title-font, var(--font-heading--family));
+  }
+
+  .rack-builder__details-group h4 {
+    margin: 0 0 0.35rem;
+    font-family: var(--rb-body-font, var(--font-body--family));
+    font-size: 0.95rem;
+  }
+
+  .rack-builder__details-group .rack-builder__body-text {
+    margin: 0;
+    color: rgba(from var(--color-foreground) r g b / var(--opacity-subdued-text, 75%));
+  }
+
+  /*
+    Below is copied (not imported) from snippets/variant-main-picker.liquid's
+    own stylesheet block, trimmed to the parts this section uses. It's
+    duplicated rather than referenced so this section still looks right even
+    on a page that doesn't happen to render the theme's variant picker
+    elsewhere. Keep it in sync with that file if the theme's variant picker
+    styling changes.
+  */
+  .variant-option {
+    --options-border-radius: var(--variant-picker-button-radius);
+    --options-border-width: var(--variant-picker-button-border-width);
+    --variant-option-padding-inline: var(--padding-md);
+  }
+
+  .variant-option--swatches {
+    --options-border-radius: var(--variant-picker-swatch-radius);
+
+    width: 100%;
+  }
+
+  .variant-option--buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--rb-gap-controls, var(--gap-sm));
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+
+  .rack-builder__addons--stacked {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rack-builder__addons--stacked .variant-option__button-label {
+    flex-basis: auto;
+  }
+
+  .variant-option--buttons legend {
+    padding: 0;
+    margin-block-end: var(--margin-xs);
+  }
+
+  .variant-option__button-label {
+    --variant-picker-stroke-color: var(--color-variant-border);
+
+    display: flex;
+    flex: 0 0 calc(3ch + 1.3em);
+    align-items: center;
+    position: relative;
+    padding-block: var(--padding-sm);
+    padding-inline: var(--padding-lg);
+    border: var(--style-border-width) solid var(--color-variant-border);
+    border-radius: var(--options-border-radius);
+    border-width: var(--options-border-width);
+    overflow: clip;
+    justify-content: center;
+    min-height: calc(3ch + 1.3em);
+    min-width: fit-content;
+    white-space: nowrap;
+    background-color: var(--color-variant-background);
+    color: var(--color-variant-text);
+    transition:
+      background-color var(--animation-speed) var(--animation-easing),
+      border-color var(--animation-speed) var(--animation-easing);
+  }
+
+  .rack-builder__addons--compact .variant-option__button-label {
+    padding-block: var(--padding-xs);
+    padding-inline: var(--padding-md);
+    font-size: 0.85rem;
+  }
+
+  .variant-option__button-label:hover {
+    background-color: var(--color-variant-hover-background);
+    border-color: var(--color-variant-hover-border);
+    color: var(--color-variant-hover-text);
+  }
+
+  @media screen and (width >= 750px) {
+    .variant-option__button-label {
+      padding: var(--padding-xs) var(--variant-option-padding-inline);
+    }
+  }
+
+  .variant-option__button-label__text {
+    text-align: left;
+    text-wrap: auto;
+  }
+
+  .variant-option__button-label:has(:focus-visible) {
+    --variant-picker-stroke-color: var(--color-foreground);
+
+    border-color: var(--color-foreground);
+    outline: var(--focus-outline-width) solid var(--color-foreground);
+    outline-offset: var(--focus-outline-offset);
+  }
+
+  .variant-option__button-label--has-swatch {
+    padding: 0;
+    border: none;
+    display: block;
+    flex-basis: auto;
+    min-height: auto;
+  }
+
+  .variant-option__button-label:has(:checked) {
+    color: var(--color-selected-variant-text);
+    background-color: var(--color-selected-variant-background);
+    border-color: var(--color-selected-variant-border);
+  }
+
+  .variant-option__button-label:has(:checked):hover {
+    background-color: var(--color-selected-variant-hover-background);
+    border-color: var(--color-selected-variant-hover-border);
+    color: var(--color-selected-variant-hover-text);
+  }
+
+  .variant-option__button-label:has(:disabled) {
+    color: rgba(from var(--color-variant-text) r g b / 60%);
+    cursor: not-allowed;
+  }
+
+  .variant-option__button-label--has-swatch:hover {
+    outline: var(--focus-outline-width) solid rgba(from var(--color-foreground) r g b / 30%);
+    outline-offset: var(--focus-outline-offset);
+  }
+
+  .variant-option__button-label--has-swatch:has(:checked) {
+    outline: var(--focus-outline-width) solid var(--color-foreground);
+    outline-offset: var(--focus-outline-offset);
+  }
+
+  .variant-option__button-label input {
+    /* remove the input from the page flow, but keep it clickable over the label */
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .variant-option__button-label:has(input:disabled) {
+    cursor: not-allowed;
+  }
+
+  .variant-option--dropdowns {
+    display: flex;
+    flex-direction: column;
+    gap: var(--margin-2xs);
+  }
+
+  .variant-option__select-wrapper {
+    display: flex;
+    position: relative;
+    border: var(--style-border-width-inputs) solid var(--color-border);
+    border-radius: var(--style-border-radius-inputs);
+    align-items: center;
+    overflow: clip;
+    transition:
+      background-color var(--animation-speed) var(--animation-easing),
+      border-color var(--animation-speed) var(--animation-easing);
+  }
+
+  .variant-option__select-wrapper:hover {
+    border-color: var(--color-variant-hover-border);
+  }
+
+  .variant-option__select:focus-visible {
+    outline: var(--focus-outline-width) solid currentcolor;
+    outline-offset: var(--focus-outline-offset);
+  }
+
+  .variant-option__select {
+    padding-block: var(--padding-md);
+    padding-inline: var(--padding-lg) calc(var(--padding-lg) + var(--icon-size-2xs));
+    appearance: none;
+    border: 0;
+    width: 100%;
+    margin: 0;
+    cursor: pointer;
+    background: transparent;
+  }
+
+  .variant-option__select-wrapper .icon {
+    position: absolute;
+    right: var(--padding-md);
+    top: 50%;
+    transform: translateY(-50%);
+    width: var(--icon-size-2xs);
+    height: var(--icon-size-2xs);
+    pointer-events: none;
+  }
+{% endstylesheet %}
+
+<div
+  class="rack-builder color-{{ section.settings.color_scheme }}"
+  style="
+    {% render 'spacing-style', settings: section.settings %}
+    --rb-gap-viewer-panel: {{ section.settings.gap_viewer_panel }}px;
+    --rb-gap-groups: {{ section.settings.gap_groups }}px;
+    --rb-gap-controls: {{ section.settings.gap_controls }}px;
+    --rb-title-font: {{ section.settings.title_font }};
+    --rb-title-size: {{ section.settings.title_size }};
+    --rb-body-font: {{ section.settings.body_font }};
+    --rb-body-size: {{ section.settings.body_size }};
+    --variant-picker-swatch-radius: {% if section.settings.swatch_shape == 'square' %}4px{% else %}999px{% endif %};
+    --variant-picker-swatch-width: {{ section.settings.swatch_size }}px;
+    --variant-picker-swatch-height: {{ section.settings.swatch_size }}px;
+  "
+>
+  {%- if rb_product == blank -%}
+    <p class="rack-builder__note">Select a product in the section settings to show the rack builder.</p>
+  {%- elsif rb_glb == blank -%}
+    <p class="rack-builder__note">
+      "{{ rb_product.title }}" has no 3D model media. Upload the .glb file to this product's Media in the Shopify
+      admin (Product &gt; Media &gt; Add media), then it'll show up here automatically.
+    </p>
+  {%- else -%}
+    <rack-builder-component
+      class="rack-builder__wrap"
+      data-glb-url="{{ rb_glb.url }}"
+      data-currency="{{ cart.currency.iso_code | default: shop.currency }}"
+      data-color-option-index="{{ rb_color_option_index }}"
+      data-initial-variant-id="{{ rb_variant.id }}"
+      data-frame-object="{{ section.settings.frame_object_name }}"
+      data-bar-object="{{ section.settings.bar_object_name }}"
+      data-weight-plates-object="{{ section.settings.weight_plates_object_name }}"
+      data-bench-object="{{ section.settings.bench_object_name }}"
+    >
+      <div class="rack-builder__viewer" data-rack-viewer>
+        <div class="rack-builder__canvas-wrap" data-rack-canvas></div>
+        <div class="rack-builder__loading" data-rack-loading>Loading 3D model…</div>
+        <button
+          type="button"
+          class="rack-builder__expand"
+          data-rack-expand
+          aria-label="View 3D model fullscreen"
+        >
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" width="18" height="18">
+            <path
+              d="M7 3H3v4M13 3h4v4M17 13v4h-4M3 13v4h4"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <div class="rack-builder__panel" data-rack-panel>
+        <div>
+          <h3 class="rack-builder__title">{{ rb_product.title }}</h3>
+          <div class="rack-builder__price" data-rack-total>{{ rb_variant.price | money }}</div>
+        </div>
+
+        {%- if rb_color_option_index >= 0 -%}
+          <fieldset class="variant-option variant-option--buttons variant-option--swatches">
+            <legend>Color</legend>
+            {%- for block in section.blocks -%}
+              {%- if block.type == 'color_swatch' -%}
+                {%- if section.settings.color_selector_style == 'swatch' -%}
+                  <label class="variant-option__button-label variant-option__button-label--has-swatch">
+                    <input
+                      type="radio"
+                      name="rack-builder-color-{{ section.id }}"
+                      value="{{ block.settings.label }}"
+                      aria-label="{{ block.settings.label }}"
+                      data-rack-swatch
+                      data-color="{{ block.settings.color }}"
+                      data-option-index="{{ rb_color_option_index }}"
+                      {% if forloop.index0 == rb_checked_swatch_index or rb_checked_swatch_index == -1 and forloop.first %}
+                        checked
+                      {% endif %}
+                      {{ block.shopify_attributes }}
+                    >
+                    <span class="swatch swatch--unscaled" style="--swatch-background: {{ block.settings.color }};"></span>
+                  </label>
+                {%- else -%}
+                  <label class="variant-option__button-label">
+                    <input
+                      type="radio"
+                      name="rack-builder-color-{{ section.id }}"
+                      value="{{ block.settings.label }}"
+                      aria-label="{{ block.settings.label }}"
+                      data-rack-swatch
+                      data-color="{{ block.settings.color }}"
+                      data-option-index="{{ rb_color_option_index }}"
+                      {% if forloop.index0 == rb_checked_swatch_index or rb_checked_swatch_index == -1 and forloop.first %}
+                        checked
+                      {% endif %}
+                      {{ block.shopify_attributes }}
+                    >
+                    <span class="variant-option__button-label__text">{{ block.settings.label }}</span>
+                  </label>
+                {%- endif -%}
+              {%- endif -%}
+            {%- endfor -%}
+          </fieldset>
+        {%- endif -%}
+
+        {%- for option in rb_product.options_with_values -%}
+          {%- unless option.name == 'Color' -%}
+            <div class="variant-option variant-option--dropdowns">
+              <label for="RackBuilderOption-{{ section.id }}-{{ forloop.index0 }}">{{ option.name | escape }}</label>
+              <div class="variant-option__select-wrapper">
+                <select
+                  id="RackBuilderOption-{{ section.id }}-{{ forloop.index0 }}"
+                  class="variant-option__select"
+                  data-rack-option
+                  data-option-index="{{ forloop.index0 }}"
+                >
+                  {%- for value in option.values -%}
+                    <option value="{{ value | escape }}" {% if value == option.selected_value %}selected{% endif %}>
+                      {{ value | escape }}
+                    </option>
+                  {%- endfor -%}
+                </select>
+                <svg aria-hidden="true" focusable="false" class="icon icon-caret" viewBox="0 0 10 6">
+                  {%- render 'icon', icon: 'caret' -%}
+                </svg>
+              </div>
+            </div>
+          {%- endunless -%}
+        {%- endfor -%}
+
+        <fieldset
+          class="variant-option variant-option--buttons{% if section.settings.addon_layout == 'stacked' %} rack-builder__addons--stacked{% endif %}{% if section.settings.addon_size == 'compact' %} rack-builder__addons--compact{% endif %}"
+        >
+          <legend>Add-ons</legend>
+
+          <label class="variant-option__button-label">
+            <input
+              type="checkbox"
+              data-rack-toggle
+              data-object="bar"
+              data-variant-id="{{ rb_bar_variant.id }}"
+              data-price="{{ rb_bar_variant.price }}"
+              {% unless rb_bar_variant.available %}
+                disabled="disabled"
+              {% endunless %}
+            >
+            <span class="variant-option__button-label__text">
+              Add Bar
+              {% if rb_bar_variant %}
+                (+{{ rb_bar_variant.price | money }})
+              {% else %}
+                (preview)
+              {% endif %}
+            </span>
+          </label>
+
+          <label class="variant-option__button-label">
+            <input
+              type="checkbox"
+              data-rack-toggle
+              data-object="weight_plates"
+              data-variant-id="{{ rb_weight_plates_variant.id }}"
+              data-price="{{ rb_weight_plates_variant.price }}"
+              {% unless rb_weight_plates_variant.available %}
+                disabled="disabled"
+              {% endunless %}
+            >
+            <span class="variant-option__button-label__text">
+              Add Weights
+              {% if rb_weight_plates_variant %}
+                (+{{ rb_weight_plates_variant.price | money }})
+              {% else %}
+                (preview)
+              {% endif %}
+            </span>
+          </label>
+
+          <label class="variant-option__button-label">
+            <input
+              type="checkbox"
+              data-rack-toggle
+              data-object="bench"
+              data-variant-id="{{ rb_bench_variant.id }}"
+              data-price="{{ rb_bench_variant.price }}"
+              {% unless rb_bench_variant.available %}
+                disabled="disabled"
+              {% endunless %}
+            >
+            <span class="variant-option__button-label__text">
+              Add Bench
+              {% if rb_bench_variant %}
+                (+{{ rb_bench_variant.price | money }})
+              {% else %}
+                (preview)
+              {% endif %}
+            </span>
+          </label>
+        </fieldset>
+
+        <script type="application/json" data-rack-variants>
+          [
+            {%- for variant in rb_product.variants -%}
+              {
+                "id": {{ variant.id | json }},
+                "price": {{ variant.price | json }},
+                "available": {{ variant.available | json }},
+                "options": {{ variant.options | json }}
+              }{% unless forloop.last %},{% endunless %}
+            {%- endfor -%}
+          ]
+        </script>
+
+        {%- form 'product', rb_product, id: rb_form_id, class: 'rack-builder__form' -%}
+          <input
+            type="hidden"
+            name="id"
+            value="{{ rb_variant.id }}"
+            data-price="{{ rb_variant.price }}"
+            data-rack-variant-id
+          >
+
+          <div class="rack-builder__cart-row">
+            {%- if section.settings.show_quantity_selector -%}
+              {% render 'quantity-selector', product: rb_product, class: 'rack-builder__quantity' %}
+            {%- endif -%}
+
+            <button
+              type="submit"
+              class="{{ rb_button_classes }}"
+              data-rack-submit
+              {% unless rb_variant.available %}
+                disabled="disabled"
+              {% endunless %}
+            >
+              <span class="rack-builder__submit-content">
+                {% if rb_variant.available %}
+                  <span class="svg-wrapper">{{- 'icon-add-to-cart.svg' | inline_asset_content -}}</span>
+                  <span>Add to cart</span>
+                {% else %}
+                  <span>Sold out</span>
+                {% endif %}
+              </span>
+            </button>
+          </div>
+          <p class="rack-builder__note" data-rack-cart-status role="status" aria-live="polite"></p>
+        {%- endform -%}
+
+        {%- if section.settings.description != blank or section.settings.shipping_text != blank or section.settings.returns_text != blank -%}
+          <div class="rack-builder__details">
+            {%- if section.settings.description != blank -%}
+              <div class="rack-builder__details-group">
+                <h3 class="rack-builder__details-heading">{{ section.settings.description_heading }}</h3>
+                <div class="rack-builder__body-text">{{ section.settings.description }}</div>
+              </div>
+            {%- endif -%}
+
+            {%- if section.settings.shipping_text != blank -%}
+              <div class="rack-builder__details-group">
+                <h4>Shipping</h4>
+                <div class="rack-builder__body-text">{{ section.settings.shipping_text }}</div>
+              </div>
+            {%- endif -%}
+
+            {%- if section.settings.returns_text != blank -%}
+              <div class="rack-builder__details-group">
+                <h4>Returns</h4>
+                <div class="rack-builder__body-text">{{ section.settings.returns_text }}</div>
+              </div>
+            {%- endif -%}
+          </div>
+        {%- endif -%}
+      </div>
+
+      <dialog class="rack-builder__fullscreen" data-rack-fullscreen-dialog>
+        <button
+          type="button"
+          class="rack-builder__fullscreen-close"
+          data-rack-collapse
+          aria-label="Close fullscreen view"
+        >
+          <span class="svg-wrapper">{{- 'icon-close.svg' | inline_asset_content -}}</span>
+        </button>
+        <div class="rack-builder__fullscreen-stage" data-rack-fullscreen-stage></div>
+        <button
+          type="button"
+          class="rack-builder__fullscreen-toggle"
+          data-rack-panel-toggle
+          aria-label="Show color, add-ons, and details"
+        >
+          <span class="svg-wrapper">{{- 'icon-menu.svg' | inline_asset_content -}}</span>
+          <span>Details</span>
+        </button>
+        <div class="rack-builder__fullscreen-panel" data-rack-fullscreen-panel></div>
+      </dialog>
+    </rack-builder-component>
+
+    <script src="{{ 'rack-builder.js' | asset_url }}" type="module"></script>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "Rack Builder (3D)",
+  "settings": [
+    {
+      "type": "product",
+      "id": "product",
+      "label": "Product"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "header",
+      "content": "3D model object names"
+    },
+    {
+      "type": "paragraph",
+      "content": "These must exactly match the object names inside your .glb (check in Blender's outliner, or ask whoever exported it). If a name below doesn't exist in the file, that part just won't respond — color/add-on toggles silently do nothing rather than error."
+    },
+    {
+      "type": "text",
+      "id": "frame_object_name",
+      "label": "Frame object name",
+      "default": "rack_frame",
+      "info": "Recolored by the color swatches."
+    },
+    {
+      "type": "text",
+      "id": "bar_object_name",
+      "label": "Bar object name",
+      "default": "bar",
+      "info": "Shown/hidden by the \"Add Bar\" toggle."
+    },
+    {
+      "type": "text",
+      "id": "weight_plates_object_name",
+      "label": "Weight plates object name",
+      "default": "weight_plates",
+      "info": "Shown/hidden by the \"Add Weights\" toggle."
+    },
+    {
+      "type": "text",
+      "id": "bench_object_name",
+      "label": "Bench object name",
+      "default": "bench",
+      "info": "Shown/hidden by the \"Add Bench\" toggle."
+    },
+    {
+      "type": "header",
+      "content": "Add-ons"
+    },
+    {
+      "type": "paragraph",
+      "content": "Each picker is a real, separately-sold product. Checking its box adds its first available variant to the cart at its real price. Leave blank to keep that toggle as a 3D preview only (no cart effect)."
+    },
+    {
+      "type": "product",
+      "id": "bar_product",
+      "label": "Bar product"
+    },
+    {
+      "type": "product",
+      "id": "weight_plates_product",
+      "label": "Weight plates product"
+    },
+    {
+      "type": "product",
+      "id": "bench_product",
+      "label": "Bench product"
+    },
+    {
+      "type": "header",
+      "content": "Color selector style"
+    },
+    {
+      "type": "select",
+      "id": "color_selector_style",
+      "label": "Style",
+      "options": [
+        { "value": "swatch", "label": "Color swatches" },
+        { "value": "button", "label": "Text buttons" }
+      ],
+      "default": "swatch"
+    },
+    {
+      "type": "select",
+      "id": "swatch_shape",
+      "label": "Swatch shape",
+      "options": [
+        { "value": "round", "label": "Round" },
+        { "value": "square", "label": "Square" }
+      ],
+      "default": "round",
+      "visible_if": "{{ section.settings.color_selector_style == 'swatch' }}"
+    },
+    {
+      "type": "range",
+      "id": "swatch_size",
+      "label": "Swatch size",
+      "min": 16,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 32,
+      "visible_if": "{{ section.settings.color_selector_style == 'swatch' }}"
+    },
+    {
+      "type": "header",
+      "content": "Add-ons style"
+    },
+    {
+      "type": "select",
+      "id": "addon_layout",
+      "label": "Layout",
+      "options": [
+        { "value": "wrap", "label": "Wrap in a row" },
+        { "value": "stacked", "label": "Stacked, full width" }
+      ],
+      "default": "wrap"
+    },
+    {
+      "type": "select",
+      "id": "addon_size",
+      "label": "Button size",
+      "options": [
+        { "value": "regular", "label": "Regular" },
+        { "value": "compact", "label": "Compact" }
+      ],
+      "default": "regular"
+    },
+    {
+      "type": "header",
+      "content": "Cart button style"
+    },
+    {
+      "type": "select",
+      "id": "button_style",
+      "label": "Style",
+      "options": [
+        { "value": "primary", "label": "Primary" },
+        { "value": "secondary", "label": "Secondary" }
+      ],
+      "default": "primary"
+    },
+    {
+      "type": "select",
+      "id": "button_size",
+      "label": "Size",
+      "options": [
+        { "value": "small", "label": "Small" },
+        { "value": "medium", "label": "Medium" },
+        { "value": "large", "label": "Large" }
+      ],
+      "default": "medium"
+    },
+    {
+      "type": "select",
+      "id": "button_width",
+      "label": "Width",
+      "options": [
+        { "value": "full", "label": "Full width" },
+        { "value": "fit-content", "label": "Fit content" }
+      ],
+      "default": "full"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_quantity_selector",
+      "label": "Show quantity selector",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "gap_viewer_panel",
+      "label": "Gap between 3D viewer and panel",
+      "min": 0,
+      "max": 80,
+      "step": 4,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "range",
+      "id": "gap_groups",
+      "label": "Gap between groups (title, color, add-ons, details)",
+      "min": 0,
+      "max": 64,
+      "step": 4,
+      "unit": "px",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "gap_controls",
+      "label": "Gap between individual buttons/swatches",
+      "min": 0,
+      "max": 32,
+      "step": 2,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "header",
+      "content": "t:content.padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "t:settings.top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "t:settings.bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-inline-start",
+      "label": "t:settings.left",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-inline-end",
+      "label": "t:settings.right",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "select",
+      "id": "title_font",
+      "label": "Title font",
+      "options": [
+        { "value": "var(--font-body--family)", "label": "Body" },
+        { "value": "var(--font-subheading--family)", "label": "Subheading" },
+        { "value": "var(--font-heading--family)", "label": "Heading" },
+        { "value": "var(--font-accent--family)", "label": "Accent" }
+      ],
+      "default": "var(--font-heading--family)"
+    },
+    {
+      "type": "select",
+      "id": "title_size",
+      "label": "Title size",
+      "options": [
+        { "value": "1rem", "label": "16px" },
+        { "value": "1.125rem", "label": "18px" },
+        { "value": "1.25rem", "label": "20px" },
+        { "value": "1.5rem", "label": "24px" },
+        { "value": "2rem", "label": "32px" },
+        { "value": "2.5rem", "label": "40px" }
+      ],
+      "default": "1.25rem"
+    },
+    {
+      "type": "select",
+      "id": "body_font",
+      "label": "Body font (price, labels, description)",
+      "options": [
+        { "value": "var(--font-body--family)", "label": "Body" },
+        { "value": "var(--font-subheading--family)", "label": "Subheading" },
+        { "value": "var(--font-heading--family)", "label": "Heading" },
+        { "value": "var(--font-accent--family)", "label": "Accent" }
+      ],
+      "default": "var(--font-body--family)"
+    },
+    {
+      "type": "select",
+      "id": "body_size",
+      "label": "Body size",
+      "options": [
+        { "value": "0.75rem", "label": "12px" },
+        { "value": "0.875rem", "label": "14px" },
+        { "value": "1rem", "label": "16px" },
+        { "value": "1.125rem", "label": "18px" },
+        { "value": "1.25rem", "label": "20px" }
+      ],
+      "default": "1rem"
+    },
+    {
+      "type": "header",
+      "content": "Description"
+    },
+    {
+      "type": "paragraph",
+      "content": "Shown below the Add to Cart button, in place of a separate product information section."
+    },
+    {
+      "type": "text",
+      "id": "description_heading",
+      "label": "Description heading",
+      "default": "Details"
+    },
+    {
+      "type": "richtext",
+      "id": "description",
+      "label": "Description",
+      "default": "<p>Commercial-grade steel power rack built for daily use. Bolt-together frame, numbered laser-cut holes, and a weight capacity built to handle heavy compound lifts.</p>"
+    },
+    {
+      "type": "richtext",
+      "id": "shipping_text",
+      "label": "Shipping details",
+      "default": "<p>Ships via freight in 5-7 business days. Free shipping on this item within the continental US. Someone must be available to assist the driver with curbside delivery.</p>"
+    },
+    {
+      "type": "richtext",
+      "id": "returns_text",
+      "label": "Return details",
+      "default": "<p>30-day return window from delivery. Item must be unused and in its original packaging. Contact us for a return authorization before shipping anything back — freight returns without one may be refused.</p>"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "color_swatch",
+      "name": "Color swatch",
+      "settings": [
+        {
+          "type": "paragraph",
+          "content": "Label must exactly match one of the main product's \"Color\" variant option values to switch variants. Otherwise it only recolors the 3D preview."
+        },
+        {
+          "type": "text",
+          "id": "label",
+          "label": "Label",
+          "default": "Black"
+        },
+        {
+          "type": "color",
+          "id": "color",
+          "label": "Color",
+          "default": "#1a1a1a"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Rack Builder (3D)",
+      "blocks": [
+        { "type": "color_swatch", "settings": { "label": "Black", "color": "#1a1a1a" } },
+        { "type": "color_swatch", "settings": { "label": "Red", "color": "#b91c1c" } },
+        { "type": "color_swatch", "settings": { "label": "Blue", "color": "#1d4ed8" } },
+        { "type": "color_swatch", "settings": { "label": "Silver", "color": "#c0c0c0" } }
+      ]
+    }
+  ]
+}
+{% endschema %}

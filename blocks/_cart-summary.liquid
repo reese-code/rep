@@ -160,7 +160,10 @@
   {{ block.shopify_attributes }}
 >
   <div class="{{ cart_summary_inner_class }}">
-    {% render 'cart-summary' %}
+    {%- capture cart_ar_setup_block -%}
+      {%- content_for 'block', id: 'cart-ar-setup', type: '_cart-ar-setup' -%}
+    {%- endcapture -%}
+    {% render 'cart-summary', cart_ar_setup_block: cart_ar_setup_block %}
   </div>
 </div>
 
