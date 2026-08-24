@@ -618,6 +618,7 @@
       data-color-option-index="{{ rb_color_option_index }}"
       data-initial-variant-id="{{ rb_variant.id }}"
       data-frame-object="{{ section.settings.frame_object_name }}"
+      data-frame-material-names="{{ section.settings.frame_material_names }}"
       data-bar-object="{{ section.settings.bar_object_name }}"
       data-weight-plates-object="{{ section.settings.weight_plates_object_name }}"
       data-bench-object="{{ section.settings.bench_object_name }}"
@@ -910,35 +911,42 @@
     },
     {
       "type": "paragraph",
-      "content": "These must exactly match the object names inside your .glb (check in Blender's outliner, or ask whoever exported it). If a name below doesn't exist in the file, that part just won't respond — color/add-on toggles silently do nothing rather than error."
+      "content": "Must match names as the 3D loader reports them (spaces become underscores), not the Blender outliner. Check your browser console for the exact names found. Comma-separate multiple names to group them under one toggle."
     },
     {
       "type": "text",
       "id": "frame_object_name",
-      "label": "Frame object name",
+      "label": "Frame object name(s)",
       "default": "rack_frame",
-      "info": "Recolored by the color swatches."
+      "info": "Used to frame the camera on load. Comma-separate multiple names. Only recolors materials too if \"Frame material name(s)\" below is left blank."
+    },
+    {
+      "type": "text",
+      "id": "frame_material_names",
+      "label": "Frame material name(s) to recolor",
+      "default": "fake leather, metal 2, shiny metal",
+      "info": "Recolored by the swatches — searches the whole model by material name, not just the frame object (useful when one mesh mixes a material you want with one you don't). Leave blank to recolor every material on the frame object(s) instead."
     },
     {
       "type": "text",
       "id": "bar_object_name",
-      "label": "Bar object name",
+      "label": "Bar object name(s)",
       "default": "bar",
-      "info": "Shown/hidden by the \"Add Bar\" toggle."
+      "info": "Shown/hidden by the \"Add Bar\" toggle. Comma-separate multiple names."
     },
     {
       "type": "text",
       "id": "weight_plates_object_name",
-      "label": "Weight plates object name",
+      "label": "Weight plates object name(s)",
       "default": "weight_plates",
-      "info": "Shown/hidden by the \"Add Weights\" toggle."
+      "info": "Shown/hidden by the \"Add Weights\" toggle. Comma-separate multiple names."
     },
     {
       "type": "text",
       "id": "bench_object_name",
-      "label": "Bench object name",
-      "default": "bench",
-      "info": "Shown/hidden by the \"Add Bench\" toggle."
+      "label": "Bench object name(s)",
+      "default": "bench_cushion, bench_frame, pins",
+      "info": "Shown/hidden by the \"Add Bench\" toggle. Comma-separate multiple names."
     },
     {
       "type": "header",

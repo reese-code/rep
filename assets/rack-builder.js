@@ -35,6 +35,21 @@ function loadThree() {
   return threeModulesPromise;
 }
 
+/**
+ * A "part" (frame, bar, weight plates, bench, ...) is often more than one
+ * mesh in the .glb — e.g. a bench is its cushion + frame + adjustment pin
+ * as three separate objects. Section settings accept a comma-separated
+ * list for exactly this reason.
+ * @param {string | undefined} raw
+ * @returns {string[]}
+ */
+function parseObjectNameList(raw) {
+  return (raw || '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 class RackBuilderComponent extends HTMLElement {
   /** @type {any} */
   #THREE;
@@ -104,13 +119,17 @@ class RackBuilderComponent extends HTMLElement {
     this.#renderer?.dispose();
   }
 
-  /** Maps a checkbox's semantic data-object ("bar", "weight_plates", "bench") to the actual object name in this model, as configured in the section's settings. */
+  /** Maps a checkbox's semantic data-object ("bar", "weight_plates", "bench") to the actual object name(s) in this model, as configured in the section's settings. */
   get #addonObjectNames() {
     return {
-      bar: this.dataset.barObject,
-      weight_plates: this.dataset.weightPlatesObject,
-      bench: this.dataset.benchObject,
+      bar: parseObjectNameList(this.dataset.barObject),
+      weight_plates: parseObjectNameList(this.dataset.weightPlatesObject),
+      bench: parseObjectNameList(this.dataset.benchObject),
     };
+  }
+
+  get #frameObjectNames() {
+    return parseObjectNameList(this.dataset.frameObject);
   }
 
   #loadVariants() {
@@ -215,25 +234,30 @@ class RackBuilderComponent extends HTMLElement {
     const model = gltf.scene;
     this.#scene.add(model);
 
-    const frameObjectName = this.dataset.frameObject;
-    const addonObjectNames = Object.values(this.#addonObjectNames);
-    const wantedNames = new Set([frameObjectName, ...addonObjectNames].filter(Boolean));
+    const frameObjectNames = this.#frameObjectNames;
+    const addonObjectNames = Object.values(this.#addonObjectNames).flat();
+    const wantedNames = new Set([...frameObjectNames, ...addonObjectNames]);
 
     // Walk the model and stash a reference to each named object we care
     // about, so the toggle/color controls don't have to re-search the
-    // scene graph every time they're used.
+    // scene graph every time they're used. Also collect every object
+    // name that actually exists in the file, purely for the diagnostic
+    // log below — comparing "what we wanted" against "what's really
+    // there" is the fastest way to spot a typo/mismatch.
+    const allObjectNames = [];
     model.traverse((node) => {
+      if (node.name) allObjectNames.push(node.name);
       if (wantedNames.has(node.name)) {
         this.#namedObjects.set(node.name, node);
       }
     });
 
-    if (this.#namedObjects.size === 0) {
-      console.warn(
-        `[rack-builder] none of the configured object names (${[...wantedNames].join(', ')}) were found in this .glb.`,
-        'Toggles and color swatches will have no effect until the "3D model object names" section settings match the real names inside the file.'
-      );
-    }
+    const missingNames = [...wantedNames].filter((name) => !this.#namedObjects.has(name));
+    console.info(
+      `[rack-builder] configured object names found: [${[...this.#namedObjects.keys()].join(', ')}]`,
+      missingNames.length ? `\nNOT found (typo, or not this model): [${missingNames.join(', ')}]` : '',
+      `\nAll object names actually in this .glb: [${allObjectNames.join(', ')}]`
+    );
 
     // Hide add-on parts by default; only the frame shows until a
     // checkbox is switched on.
@@ -242,23 +266,60 @@ class RackBuilderComponent extends HTMLElement {
       if (object) object.visible = false;
     });
 
-    // Collect every material used on the frame object (recolored by the
-    // color swatches) so a color swap can update all of them at once,
-    // even if the frame turns out to have more than one material slot.
-    const frame = this.#namedObjects.get(frameObjectName);
-    if (frame) {
-      frame.traverse((node) => {
+    // Collect materials to recolor. If specific material names were
+    // configured (Frame material name(s) setting), search the whole
+    // model for materials matching those names — a color is a material
+    // concept, and the same material can be shared across several
+    // objects (or one object can use several materials), so this is
+    // more precise than "every material found on the frame object(s)".
+    // Falls back to the old object-based collection if that setting is
+    // left blank.
+    const frameMaterialNames = parseObjectNameList(this.dataset.frameMaterialNames).map((name) =>
+      name.toLowerCase()
+    );
+
+    if (frameMaterialNames.length) {
+      const seenMaterialNames = new Set();
+      model.traverse((node) => {
         if (!node.isMesh) return;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
-          if (material && !this.#frameMaterials.includes(material)) this.#frameMaterials.push(material);
+          if (!material || this.#frameMaterials.includes(material)) return;
+          if (frameMaterialNames.includes((material.name || '').toLowerCase())) {
+            this.#frameMaterials.push(material);
+            seenMaterialNames.add(material.name);
+          }
+        });
+      });
+      const missingMaterialNames = frameMaterialNames.filter(
+        (name) => ![...seenMaterialNames].some((seen) => seen.toLowerCase() === name)
+      );
+      if (missingMaterialNames.length) {
+        console.warn(`[rack-builder] configured material name(s) not found in this .glb: [${missingMaterialNames.join(', ')}]`);
+      }
+    } else {
+      const frameObjects = frameObjectNames.map((name) => this.#namedObjects.get(name)).filter(Boolean);
+      frameObjects.forEach((frameObject) => {
+        frameObject.traverse((node) => {
+          if (!node.isMesh) return;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            if (material && !this.#frameMaterials.includes(material)) this.#frameMaterials.push(material);
+          });
         });
       });
     }
 
+    const frameObjects = frameObjectNames.map((name) => this.#namedObjects.get(name)).filter(Boolean);
+
     // Frame the camera around whatever loaded, regardless of the model's
     // native scale/origin.
-    const box = new THREE.Box3().setFromObject(frame || model);
+    const box = new THREE.Box3();
+    if (frameObjects.length) {
+      frameObjects.forEach((frameObject) => box.expandByObject(frameObject));
+    } else {
+      box.setFromObject(model);
+    }
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
@@ -346,9 +407,11 @@ class RackBuilderComponent extends HTMLElement {
 
   #onToggleChange = (event) => {
     const checkbox = event.currentTarget;
-    const objectName = this.#addonObjectNames[checkbox.dataset.object];
-    const object = this.#namedObjects.get(objectName);
-    if (object) object.visible = checkbox.checked;
+    const objectNames = this.#addonObjectNames[checkbox.dataset.object] || [];
+    objectNames.forEach((name) => {
+      const object = this.#namedObjects.get(name);
+      if (object) object.visible = checkbox.checked;
+    });
     this.#updateTotal();
   };
 
