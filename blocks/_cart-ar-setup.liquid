@@ -1,0 +1,212 @@
+{%- comment -%}
+  Cart AR Setup — "View your new setup"
+  --------------------------------------
+  Static block rendered inside the cart (drawer and cart page, since both
+  render 'cart-summary'). Shows a button that opens a dialog containing
+  one shared 3D scene (Three.js) with every unique product in the cart
+  that has model media loaded together on the same floor. Each product
+  can be clicked and dragged to a new spot; dragging the background
+  orbits the camera around the whole scene.
+
+  Color scheme, border, heading font, and copy are all editable from the
+  Theme Editor via this block's settings panel.
+{%- endcomment -%}
+
+{%- assign cas_seen = '' -%}
+{%- assign cas_items = '' -%}
+{%- assign cas_has_models = false -%}
+{%- for item in cart.items -%}
+  {%- assign cas_pid = ',' | append: item.product.id | append: ',' -%}
+  {%- unless cas_seen contains cas_pid -%}
+    {%- assign cas_seen = cas_seen | append: cas_pid -%}
+    {%- assign cas_model = item.product.media | where: 'media_type', 'model' | first -%}
+    {%- if cas_model -%}
+      {%- assign cas_glb = cas_model.sources | where: 'format', 'glb' | first -%}
+      {%- if cas_glb -%}
+        {%- assign cas_has_models = true -%}
+        {%- capture cas_entry -%}
+          {"title":{{ item.product.title | json }},"glbUrl":{{ cas_glb.url | json }}}
+        {%- endcapture -%}
+        {%- if cas_items == '' -%}
+          {%- assign cas_items = cas_entry -%}
+        {%- else -%}
+          {%- assign cas_items = cas_items | append: ',' | append: cas_entry -%}
+        {%- endif -%}
+      {%- endif -%}
+    {%- endif -%}
+  {%- endunless -%}
+{%- endfor -%}
+
+{%- if cas_has_models -%}
+  {%- style -%}
+    #cart-ar-setup-{{ block.id }} .cas-modal__title {
+      font-family: {{ block.settings.heading_font }};
+    }
+  {%- endstyle -%}
+
+  {{ 'cart-ar-setup.css' | asset_url | stylesheet_tag }}
+  <script src="{{ 'cart-ar-setup.js' | asset_url }}" type="module"></script>
+
+  <cart-ar-setup-component class="cas" id="cart-ar-setup-{{ block.id }}" {{ block.shopify_attributes }}>
+    <button type="button" class="button button--tertiary cas__trigger" on:click="/open">
+      {{ block.settings.button_label | default: 'View your new setup' }}
+    </button>
+
+    <dialog
+      ref="dialog"
+      class="cas-modal border-style color-{{ block.settings.color_scheme }}"
+      style="{% render 'border-override', settings: block.settings %}"
+      aria-label="{{ block.settings.button_label | default: 'View your new setup' }}"
+    >
+      <button
+        type="button"
+        class="cas-modal__close"
+        on:click="/close"
+        aria-label="{{ 'actions.close_dialog' | t }}"
+      >
+        <span class="svg-wrapper">{{- 'icon-close.svg' | inline_asset_content -}}</span>
+      </button>
+
+      <div class="cas-modal__header">
+        <h3 class="cas-modal__title h4">{{ block.settings.heading | default: 'Your new setup' }}</h3>
+        {%- if block.settings.subheading != blank -%}
+          <p class="cas-modal__subtitle">{{ block.settings.subheading }}</p>
+        {%- endif -%}
+      </div>
+
+      <div class="cas-scene">
+        <div class="cas-scene__canvas-wrap" data-cas-canvas-wrap></div>
+        <div class="cas-scene__label" data-cas-label hidden></div>
+        <div class="cas-scene__loading" data-cas-loading>Loading your setup…</div>
+      </div>
+
+      <script type="application/json" data-cas-items>[{{ cas_items }}]</script>
+    </dialog>
+  </cart-ar-setup-component>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Cart AR setup",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:content.text"
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "View your new setup"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "t:settings.heading",
+      "default": "Your new setup"
+    },
+    {
+      "type": "textarea",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Click and drag a piece to move it. Drag the floor to look around."
+    },
+    {
+      "type": "header",
+      "content": "t:content.colors"
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1"
+    },
+    {
+      "type": "header",
+      "content": "t:content.typography"
+    },
+    {
+      "type": "select",
+      "id": "heading_font",
+      "label": "t:settings.font",
+      "options": [
+        {
+          "value": "var(--font-body--family)",
+          "label": "t:options.body"
+        },
+        {
+          "value": "var(--font-subheading--family)",
+          "label": "t:options.subheading"
+        },
+        {
+          "value": "var(--font-heading--family)",
+          "label": "t:options.heading"
+        },
+        {
+          "value": "var(--font-accent--family)",
+          "label": "t:options.accent"
+        }
+      ],
+      "default": "var(--font-heading--family)"
+    },
+    {
+      "type": "header",
+      "content": "t:content.borders"
+    },
+    {
+      "type": "select",
+      "id": "border",
+      "label": "t:settings.style",
+      "options": [
+        {
+          "value": "none",
+          "label": "t:options.none"
+        },
+        {
+          "value": "solid",
+          "label": "t:options.solid"
+        }
+      ],
+      "default": "solid"
+    },
+    {
+      "type": "range",
+      "id": "border_width",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "label": "t:settings.thickness",
+      "default": 1,
+      "visible_if": "{{ block.settings.border != 'none' }}"
+    },
+    {
+      "type": "range",
+      "id": "border_opacity",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%",
+      "label": "t:settings.opacity",
+      "default": 100,
+      "visible_if": "{{ block.settings.border != 'none' }}"
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "t:settings.border_radius",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 8
+    }
+  ],
+  "presets": [
+    {
+      "name": "Cart AR setup"
+    }
+  ]
+}
+{% endschema %}

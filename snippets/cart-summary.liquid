@@ -101,6 +101,8 @@
 </div>
 
 <div class="cart__ctas">
+  {% content_for 'block', type: '_cart-ar-setup', id: 'cart-ar-setup' %}
+
   <button
     type="submit"
     id="checkout"

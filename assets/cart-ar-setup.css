@@ -1,0 +1,108 @@
+.cas {
+  display: contents;
+}
+
+.cas__trigger {
+  width: 100%;
+}
+
+.cas-modal {
+  padding: 0;
+  width: min(96vw, 110rem);
+  max-height: 90vh;
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+.cas-modal::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cas-modal[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.cas-modal__close {
+  position: absolute;
+  top: var(--margin-sm, 1.2rem);
+  right: var(--margin-sm, 1.2rem);
+  z-index: 2;
+  width: 3.6rem;
+  height: 3.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-foreground);
+  cursor: pointer;
+}
+
+.cas-modal__header {
+  padding: var(--padding-lg, 2.4rem) var(--padding-lg, 2.4rem) 0;
+}
+
+.cas-modal__title {
+  margin: 0 0 var(--gap-3xs, 0.4rem);
+}
+
+.cas-modal__subtitle {
+  margin: 0;
+  color: rgb(from var(--color-foreground) r g b / var(--opacity-subdued-text, 0.7));
+  font-size: var(--font-size-sm, 1.3rem);
+}
+
+.cas-scene {
+  position: relative;
+  flex: 1 1 auto;
+  margin: var(--padding-lg, 2.4rem);
+  min-height: 38rem;
+  height: 55vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--style-border-radius-buttons-primary, 0.3rem);
+  overflow: hidden;
+}
+
+.cas-scene__canvas-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cas-scene__canvas-wrap canvas {
+  cursor: grab;
+}
+
+.cas-scene__label {
+  position: absolute;
+  top: 1.2rem;
+  left: 1.2rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.5rem 1.2rem;
+  font-size: var(--font-size-sm, 1.3rem);
+  pointer-events: none;
+}
+
+.cas-scene__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background);
+  color: rgb(from var(--color-foreground) r g b / var(--opacity-subdued-text, 0.7));
+  font-size: var(--font-size-sm, 1.3rem);
+}
+
+@media screen and (max-width: 749px) {
+  .cas-scene {
+    margin: var(--padding-md, 1.4rem);
+    height: 46vh;
+    min-height: 30rem;
+  }
+}
