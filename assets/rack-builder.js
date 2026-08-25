@@ -216,19 +216,20 @@ class RackBuilderComponent extends HTMLElement {
     // light, a softer fill light from the opposite side to open up
     // shadows, and a rim light from behind to separate the model from
     // the background — the same idea as a 3-point photo/product shot,
-    // rather than one flat directional light. Intensities are 2x the
-    // original values, per request.
-    this.#scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+    // rather than one flat directional light. Intensities were doubled
+    // per an earlier request, then brought back down by about half after
+    // that made recolored materials look washed out/too light.
+    this.#scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
-    const key = new THREE.DirectionalLight(0xffffff, 4.8);
+    const key = new THREE.DirectionalLight(0xffffff, 2.4);
     key.position.set(5, 8, 6);
     this.#scene.add(key);
 
-    const fill = new THREE.DirectionalLight(0xffffff, 2.2);
+    const fill = new THREE.DirectionalLight(0xffffff, 1.1);
     fill.position.set(-6, 4, 2);
     this.#scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0xffffff, 3.2);
+    const rim = new THREE.DirectionalLight(0xffffff, 1.6);
     rim.position.set(-2, 6, -8);
     this.#scene.add(rim);
 
@@ -285,25 +286,34 @@ class RackBuilderComponent extends HTMLElement {
     // Collect materials to recolor, kept in three separate groups so the
     // frame's Color swatches (tied to the real product variant), the
     // bench's own swatches, and the weight plates' own swatches each
-    // drive their own part independently:
+    // drive their own part independently.
     //
-    // 1. Named-material matching, scoped to the frame or bench object(s)
-    //    respectively (via "Rubber cap material name(s)") — e.g. the bench
-    //    pad material and, once you know its real name from the console
-    //    log below, the rack's rubber end-cap material. A color is a
-    //    material concept, and the same material can be shared across
-    //    several separate meshes (both ends of the rack, each leg of the
-    //    bench), so matching by name within this scope is more precise
-    //    than "every material found on the object(s)". Leaving the setting
-    //    blank falls back to recoloring every material on the object(s)
-    //    instead.
-    // 2. The weight plates always get every one of their materials
-    //    recolored, unconditionally — no name filter — so their default
-    //    metal look is fully replaced by the swatch color instead of
-    //    staying plain steel.
-    const frameObjects = frameObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
+    // The frame group and the bench-cushion group both scan the *same*
+    // full set of bench objects (cushion + frame + pins + plates) — a
+    // padded part like the leg-roller pads can be embedded inside the
+    // bench_frame object rather than being its own named object, so
+    // scoping by object name alone can't isolate it. Instead, *material
+    // name* decides the group: "frame_material_names" (metal, e.g.
+    // "Metal 2") joins the main Color swatch's group, "cap_material_names"
+    // (padded, e.g. "fake leather") joins the Bench Color group — matched
+    // wherever that material shows up across the whole bench, regardless
+    // of which object contains the mesh. A color is a material concept,
+    // and the same material can be shared across several separate meshes,
+    // so matching by name is more precise than "every material found on
+    // the object(s)".
+    //
+    // The weight plates always get every one of their materials
+    // recolored, unconditionally — no name filter — so their default
+    // metal look is fully replaced by the swatch color instead of staying
+    // plain steel.
     const benchObjectNames = this.#addonObjectNames.bench;
+    const frameObjects = frameObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
     const benchObjects = benchObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
+    // Material collection for the main Color swatch covers the rack frame
+    // plus everything in the bench group (filtered down to metal-named
+    // materials below); camera framing (below) stays scoped to just the
+    // rack frame so an unchecked "Add Bench" doesn't widen the initial view.
+    const frameColorObjects = [...frameObjects, ...benchObjects];
     const weightPlatesObjects = this.#addonObjectNames.weight_plates.flatMap(
       (name) => this.#namedObjects.get(name) || []
     );
@@ -311,47 +321,75 @@ class RackBuilderComponent extends HTMLElement {
     const capMaterialNames = parseObjectNameList(this.dataset.capMaterialNames).map((name) =>
       name.toLowerCase()
     );
+    const frameMaterialNames = parseObjectNameList(this.dataset.frameMaterialNames).map((name) =>
+      name.toLowerCase()
+    );
 
-    const collectCapMaterials = (objects, target) => {
-      const seenMaterialNames = new Set();
-      if (capMaterialNames.length) {
-        objects.forEach((object) => {
-          object.traverse((node) => {
-            if (!node.isMesh) return;
-            const materials = Array.isArray(node.material) ? node.material : [node.material];
-            materials.forEach((material) => {
-              if (!material || target.includes(material)) return;
-              if (capMaterialNames.includes((material.name || '').toLowerCase())) {
-                target.push(material);
-                seenMaterialNames.add(material.name);
-              }
-            });
-          });
-        });
-      } else {
-        objects.forEach((object) => {
-          object.traverse((node) => {
-            if (!node.isMesh) return;
-            const materials = Array.isArray(node.material) ? node.material : [node.material];
-            materials.forEach((material) => {
-              if (material && !target.includes(material)) target.push(material);
-            });
-          });
-        });
+    // glTF exporters commonly de-duplicate identical materials into a
+    // single shared instance (e.g. one "fake leather" material reused on
+    // both the rack's rubber end caps and the bench pad). Recoloring is
+    // done in place on the material object, so if the frame and bench
+    // groups ever ended up pointing at that same instance, recoloring one
+    // part would visually recolor the other too. To keep each group's
+    // swatches fully independent, the first group to claim a given
+    // material instance keeps it; every other group gets its own clone
+    // (cached per original material so repeated meshes within that group
+    // still share one instance, matching the pre-clone behavior).
+    const groupMaterialClones = new Map();
+    const materializeForGroup = (node, materialIndex, material, groupName) => {
+      let owners = groupMaterialClones.get(material);
+      if (!owners) {
+        owners = new Map();
+        groupMaterialClones.set(material, owners);
       }
+      let groupMaterial = owners.get(groupName);
+      if (!groupMaterial) {
+        groupMaterial = owners.size === 0 ? material : material.clone();
+        owners.set(groupName, groupMaterial);
+      }
+      if (node.material !== groupMaterial) {
+        if (Array.isArray(node.material)) {
+          node.material[materialIndex] = groupMaterial;
+        } else {
+          node.material = groupMaterial;
+        }
+      }
+      return groupMaterial;
+    };
+
+    const collectCapMaterials = (objects, target, groupName, materialNames) => {
+      const seenMaterialNames = new Set();
+      objects.forEach((object) => {
+        object.traverse((node) => {
+          if (!node.isMesh) return;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material, materialIndex) => {
+            if (!material) return;
+            if (materialNames.length && !materialNames.includes((material.name || '').toLowerCase())) {
+              return;
+            }
+            const groupMaterial = materializeForGroup(node, materialIndex, material, groupName);
+            if (!target.includes(groupMaterial)) {
+              target.push(groupMaterial);
+              seenMaterialNames.add(groupMaterial.name);
+            }
+          });
+        });
+      });
       return seenMaterialNames;
     };
 
-    const frameSeenNames = collectCapMaterials(frameObjects, this.#frameCapMaterials);
-    const benchSeenNames = collectCapMaterials(benchObjects, this.#benchCapMaterials);
+    const frameSeenNames = collectCapMaterials(frameColorObjects, this.#frameCapMaterials, 'frame', frameMaterialNames);
+    const benchSeenNames = collectCapMaterials(benchObjects, this.#benchCapMaterials, 'bench', capMaterialNames);
 
-    if (capMaterialNames.length) {
+    const configuredMaterialNames = [...frameMaterialNames, ...capMaterialNames];
+    if (configuredMaterialNames.length) {
       const seenMaterialNames = new Set([...frameSeenNames, ...benchSeenNames]);
-      const missingMaterialNames = capMaterialNames.filter(
+      const missingMaterialNames = configuredMaterialNames.filter(
         (name) => ![...seenMaterialNames].some((seen) => seen.toLowerCase() === name)
       );
       if (missingMaterialNames.length) {
-        console.warn(`[rack-builder] configured cap material name(s) not found on the frame/bench object(s): [${missingMaterialNames.join(', ')}]`);
+        console.warn(`[rack-builder] configured material name(s) not found on the frame/bench object(s): [${missingMaterialNames.join(', ')}]`);
       }
     }
 
@@ -359,8 +397,10 @@ class RackBuilderComponent extends HTMLElement {
       object.traverse((node) => {
         if (!node.isMesh) return;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
-        materials.forEach((material) => {
-          if (material && !this.#weightPlateMaterials.includes(material)) this.#weightPlateMaterials.push(material);
+        materials.forEach((material, materialIndex) => {
+          if (!material) return;
+          const groupMaterial = materializeForGroup(node, materialIndex, material, 'weight_plates');
+          if (!this.#weightPlateMaterials.includes(groupMaterial)) this.#weightPlateMaterials.push(groupMaterial);
         });
       });
     });

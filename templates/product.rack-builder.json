@@ -472,6 +472,7 @@
         "viewer_background_color": "#F1F1F1",
         "frame_object_name": "rack_frame",
         "cap_material_names": "fake leather",
+        "frame_material_names": "Metal 2",
         "bar_object_name": "press",
         "weight_plates_object_name": "weights",
         "bench_object_name": "bench_cushion, bench_frame, pins, plates",

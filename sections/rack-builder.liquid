@@ -661,6 +661,7 @@
       data-initial-variant-id="{{ rb_variant.id }}"
       data-frame-object="{{ section.settings.frame_object_name }}"
       data-cap-material-names="{{ section.settings.cap_material_names }}"
+      data-frame-material-names="{{ section.settings.frame_material_names }}"
       data-bar-object="{{ section.settings.bar_object_name }}"
       data-weight-plates-object="{{ section.settings.weight_plates_object_name }}"
       data-bench-object="{{ section.settings.bench_object_name }}"
@@ -1081,9 +1082,16 @@
     {
       "type": "text",
       "id": "cap_material_names",
-      "label": "Bench pad / rubber cap material name(s) to recolor",
+      "label": "Padded material name(s) to recolor (Bench Color)",
       "default": "fake leather",
-      "info": "Recolored by the swatches — matches material names on the rack frame and bench only (bar unaffected; weight plates always recolor fully). Add the rack's cap material name here once found via the browser console log. Blank recolors every frame/bench material (not recommended)."
+      "info": "Recolored by \"Bench Color\" — matches material names anywhere across the bench object(s) below (cushion, leg-roller pads, etc.), regardless of which object the mesh belongs to. Find exact names via the browser console log. Blank recolors every bench material (not recommended)."
+    },
+    {
+      "type": "text",
+      "id": "frame_material_names",
+      "label": "Frame metal material name(s) to recolor (main Color)",
+      "default": "Metal 2",
+      "info": "Recolored by the main Color swatch — matches material names on the rack frame plus the bench's metal parts (bar unaffected; weight plates always recolor fully). Blank recolors every frame/bench material not already claimed by \"Bench Color\" (not recommended)."
     },
     {
       "type": "text",
