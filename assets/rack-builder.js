@@ -16,6 +16,11 @@
 const THREE_URL = './three.module.js';
 const GLTF_LOADER_URL = './three-gltf-loader.js';
 const ORBIT_CONTROLS_URL = './three-orbit-controls.js';
+// Only pulled in when the AR button is actually clicked (see #openQuickLookAR
+// / #openSceneViewerAR below) — most visits never touch AR, so this stays
+// out of the initial viewer load.
+const GLTF_EXPORTER_URL = './three-gltf-exporter.js';
+const USDZ_EXPORTER_URL = './three-usdz-exporter.js';
 
 /** @type {Promise<{ THREE: any, GLTFLoader: any, OrbitControls: any }> | undefined} */
 let threeModulesPromise;
@@ -33,6 +38,16 @@ function loadThree() {
     }));
   }
   return threeModulesPromise;
+}
+
+/** True on iOS/iPadOS Safari, which launches AR via a Quick Look (.usdz) link rather than Scene Viewer. iPadOS reports as "MacIntel" in its UA, so touch support is what actually tells it apart from a real Mac. */
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+/** True on Android Chrome, which launches AR via a Scene Viewer (.glb) intent. */
+function isAndroidDevice() {
+  return /Android/.test(navigator.userAgent);
 }
 
 /**
@@ -73,6 +88,10 @@ class RackBuilderComponent extends HTMLElement {
   #scene;
   /** @type {any} */
   #camera;
+  /** @type {any} the loaded model's root object — exported as-is (current visibility/colors) when the AR button is used */
+  #model;
+  /** @type {boolean} guards against a second AR export starting while one is already in flight */
+  #arBusy = false;
   /** @type {any} */
   #controls;
   /** @type {any} */
@@ -126,6 +145,7 @@ class RackBuilderComponent extends HTMLElement {
     this.querySelector('[data-rack-panel-toggle]')?.addEventListener('click', this.#toggleFullscreenPanel);
     this.querySelector('[data-rack-zoom-in]')?.addEventListener('click', () => this.#zoomBy(0.8));
     this.querySelector('[data-rack-zoom-out]')?.addEventListener('click', () => this.#zoomBy(1.25));
+    this.querySelector('[data-rack-ar]')?.addEventListener('click', this.#openAR);
     // The native <dialog> "close" event fires both when we call
     // dialog.close() ourselves and when the shopper presses Escape, so
     // this is the one place that needs to move the viewer/panel back.
@@ -237,6 +257,7 @@ class RackBuilderComponent extends HTMLElement {
     const gltf = await new Promise((resolve, reject) => loader.load(glbUrl, resolve, undefined, reject));
     const model = gltf.scene;
     this.#scene.add(model);
+    this.#model = model;
 
     const frameObjectNames = this.#frameObjectNames;
     const addonObjectNames = Object.values(this.#addonObjectNames).flat();
@@ -461,6 +482,85 @@ class RackBuilderComponent extends HTMLElement {
     const offset = this.#camera.position.clone().sub(this.#controls.target).multiplyScalar(factor);
     this.#camera.position.copy(this.#controls.target).add(offset);
     this.#controls.update();
+  }
+
+  // Launches native AR with the *current* build: whichever add-ons are
+  // toggled on and whatever color they're set to, since #model's meshes
+  // and materials are mutated in place by the toggle/swatch handlers
+  // above — exporting it fresh just snapshots whatever's on screen right
+  // now. iOS gets a .usdz (Quick Look), Android gets a .glb (Scene
+  // Viewer); everything else gets a status message since neither AR
+  // pathway exists there.
+  #openAR = async () => {
+    if (this.#arBusy || !this.#model) return;
+    const statusEl = this.querySelector('[data-rack-cart-status]');
+    const arButton = this.querySelector('[data-rack-ar]');
+
+    if (!isIOSDevice() && !isAndroidDevice()) {
+      if (statusEl) statusEl.textContent = 'AR is only available on an iPhone, iPad, or Android phone — open this page there to view it in your space.';
+      return;
+    }
+
+    this.#arBusy = true;
+    arButton?.setAttribute('disabled', 'disabled');
+    if (statusEl) statusEl.textContent = 'Preparing AR view…';
+
+    try {
+      if (isIOSDevice()) {
+        await this.#openQuickLookAR();
+      } else {
+        await this.#openSceneViewerAR();
+      }
+      if (statusEl) statusEl.textContent = '';
+    } catch (error) {
+      console.error('[rack-builder] failed to launch AR', error);
+      if (statusEl) statusEl.textContent = `Couldn't open AR: ${error.message}`;
+    } finally {
+      this.#arBusy = false;
+      arButton?.removeAttribute('disabled');
+    }
+  };
+
+  async #openQuickLookAR() {
+    const { USDZExporter } = await import(USDZ_EXPORTER_URL);
+    const usdz = await new USDZExporter().parse(this.#model);
+    const blobUrl = URL.createObjectURL(new Blob([usdz], { type: 'model/vnd.usdz+zip' }));
+
+    // Apple's documented AR Quick Look trigger: a plain <a rel="ar"> wrapping
+    // an <img>, clicked programmatically. No AR-specific JS API involved —
+    // Safari intercepts the navigation itself.
+    const link = document.createElement('a');
+    link.setAttribute('rel', 'ar');
+    link.href = blobUrl;
+    const img = document.createElement('img');
+    img.setAttribute('alt', '');
+    link.appendChild(img);
+    link.click();
+
+    // Quick Look reads the blob asynchronously after the click hands off to
+    // it; revoking too early can race that read, so this holds onto the URL
+    // well past a normal handoff instead of revoking on the next tick.
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  }
+
+  async #openSceneViewerAR() {
+    const { GLTFExporter } = await import(GLTF_EXPORTER_URL);
+    const glb = await new GLTFExporter().parseAsync(this.#model, { binary: true });
+    const blobUrl = URL.createObjectURL(new Blob([glb], { type: 'model/gltf-binary' }));
+
+    // Scene Viewer intent, per Google's documented format. Chrome resolves
+    // the blob: file URL on Scene Viewer's behalf, so a locally-generated
+    // model works the same as a hosted one — no upload step needed.
+    const title = encodeURIComponent(document.title || 'Rack Builder');
+    const fallbackUrl = encodeURIComponent(location.href);
+    const intentUrl =
+      `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(blobUrl)}` +
+      `&mode=ar_preferred&title=${title}#Intent;scheme=https;` +
+      `package=com.google.ar.core;action=android.intent.action.VIEW;` +
+      `S.browser_fallback_url=${fallbackUrl};end;`;
+
+    location.href = intentUrl;
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
   }
 
   #resize() {

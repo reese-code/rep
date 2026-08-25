@@ -40,6 +40,13 @@
   snippets/variant-main-picker.liquid and snippets/quantity-selector.liquid)
   so they render with the theme's actual look — colors, radius, and border
   all come from the theme's own design settings, not custom CSS here.
+
+  A globe button sits next to the zoom controls to view the current build
+  in AR — whichever add-ons are toggled on, in whatever color they're set
+  to. It works by exporting the live Three.js model (assets/rack-builder.js,
+  #openAR) to a .usdz on iOS (Quick Look) or a .glb on Android (Scene
+  Viewer) at the moment it's clicked, so the AR view always matches
+  whatever's on screen rather than showing the bare, unconfigured model.
 {%- endcomment -%}
 
 {%- assign rb_product = section.settings.product -%}
@@ -183,6 +190,11 @@
 
   .rack-builder__zoom-btn:hover {
     background: rgba(0, 0, 0, 0.06);
+  }
+
+  .rack-builder__zoom-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   /*
@@ -693,6 +705,16 @@
           <button type="button" class="rack-builder__zoom-btn" data-rack-zoom-out aria-label="Zoom out">
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" width="16" height="16">
               <path d="M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+          <button type="button" class="rack-builder__zoom-btn" data-rack-ar aria-label="View in your space (AR)">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" width="16" height="16">
+              <circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.5" />
+              <path
+                d="M2.5 10h15M10 2.5c2.1 2.2 3.2 4.8 3.2 7.5s-1.1 5.3-3.2 7.5c-2.1-2.2-3.2-4.8-3.2-7.5S7.9 4.7 10 2.5z"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
             </svg>
           </button>
         </div>
