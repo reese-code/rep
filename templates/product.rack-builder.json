@@ -1,3 +1,12 @@
+/*
+ * ------------------------------------------------------------
+ * IMPORTANT: The contents of this file are auto-generated.
+ *
+ * This file may be updated by the Shopify admin theme editor
+ * or related systems. Please exercise caution as any changes
+ * made to this file may be overwritten.
+ * ------------------------------------------------------------
+ */
 {
   "sections": {
     "main": {
@@ -405,6 +414,7 @@
           ]
         }
       },
+      "disabled": true,
       "settings": {
         "product": "{{ closest.product }}",
         "content_width": "content-center-aligned",
@@ -459,12 +469,37 @@
       "settings": {
         "product": "{{ closest.product }}",
         "color_scheme": "scheme-1",
+        "viewer_background_color": "#F1F1F1",
+        "frame_object_name": "rack_frame",
+        "cap_material_names": "fake leather",
+        "bar_object_name": "press",
+        "weight_plates_object_name": "weights",
+        "bench_object_name": "bench_cushion, bench_frame, pins, plates",
         "bar_product": "weight-bar",
         "weight_plates_product": "weight-plate-set",
         "bench_product": "adjustable-bench",
-        "bar_object_name": "press",
-        "weight_plates_object_name": "weights",
-        "bench_object_name": "bench_cushion, bench_frame, pins, plates"
+        "color_selector_style": "swatch",
+        "swatch_shape": "round",
+        "swatch_size": 32,
+        "addon_layout": "wrap",
+        "addon_size": "regular",
+        "button_style": "primary",
+        "button_size": "medium",
+        "button_width": "full",
+        "show_quantity_selector": true,
+        "gap_viewer_panel": 32,
+        "gap_groups": 24,
+        "gap_controls": 8,
+        "padding-block-start": 0,
+        "padding-block-end": 0,
+        "padding-inline-start": 0,
+        "padding-inline-end": 0,
+        "title_richtext": "<h3>{{ section.settings.product.title }}</h3>",
+        "price_richtext": "",
+        "description_heading": "Details",
+        "description": "<p>Commercial-grade steel power rack built for daily use. Bolt-together frame, numbered laser-cut holes, and a weight capacity built to handle heavy compound lifts.</p>",
+        "shipping_text": "<p>Ships via freight in 5-7 business days. Free shipping on this item within the continental US. Someone must be available to assist the driver with curbside delivery.</p>",
+        "returns_text": "<p>30-day return window from delivery. Item must be unused and in its original packaging. Contact us for a return authorization before shipping anything back — freight returns without one may be refused.</p>"
       }
     },
     "product_recommendations_qggXJq": {
