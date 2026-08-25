@@ -50,6 +50,20 @@ function parseObjectNameList(raw) {
     .filter(Boolean);
 }
 
+/**
+ * True if a node's actual name is a configured name, or an exporter-uniquified
+ * duplicate of it (Blender/glTF exporters rename repeated siblings — e.g. two
+ * bench adjustment pins named "pins" export as "pins" and "pins.001"). Without
+ * this, only the first of each duplicate pair gets tracked, so the other stays
+ * stuck at its default visibility no matter what a toggle does.
+ * @param {string} nodeName
+ * @param {string} wantedName
+ * @returns {boolean}
+ */
+function nameMatches(nodeName, wantedName) {
+  return nodeName === wantedName || nodeName.startsWith(`${wantedName}.`);
+}
+
 class RackBuilderComponent extends HTMLElement {
   /** @type {any} */
   #THREE;
@@ -65,7 +79,7 @@ class RackBuilderComponent extends HTMLElement {
   #frameId = 0;
   /** @type {ResizeObserver | undefined} */
   #resizeObserver;
-  /** @type {Map<string, any>} named objects found in the loaded model, keyed by name */
+  /** @type {Map<string, any[]>} named objects found in the loaded model, keyed by configured name — an array because exporters uniquify duplicate names (e.g. left/right pins become "pins" and "pins.001") */
   #namedObjects = new Map();
   /** @type {any[]} materials found on rack_frame, so a color swap can update all of them */
   #frameMaterials = [];
@@ -170,7 +184,9 @@ class RackBuilderComponent extends HTMLElement {
     // too dark under any normal set of lights.
     this.#renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.#renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.#renderer.toneMappingExposure = 1.1;
+    // 2x the original 1.1 exposure — a flat global brightness multiplier
+    // on top of the lighting rig below, per request.
+    this.#renderer.toneMappingExposure = 2.2;
     canvasWrap.appendChild(this.#renderer.domElement);
 
     this.#scene = new THREE.Scene();
@@ -190,18 +206,19 @@ class RackBuilderComponent extends HTMLElement {
     // light, a softer fill light from the opposite side to open up
     // shadows, and a rim light from behind to separate the model from
     // the background — the same idea as a 3-point photo/product shot,
-    // rather than one flat directional light.
-    this.#scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    // rather than one flat directional light. Intensities are 2x the
+    // original values, per request.
+    this.#scene.add(new THREE.AmbientLight(0xffffff, 1.4));
 
-    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    const key = new THREE.DirectionalLight(0xffffff, 4.8);
     key.position.set(5, 8, 6);
     this.#scene.add(key);
 
-    const fill = new THREE.DirectionalLight(0xffffff, 1.1);
+    const fill = new THREE.DirectionalLight(0xffffff, 2.2);
     fill.position.set(-6, 4, 2);
     this.#scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0xffffff, 1.6);
+    const rim = new THREE.DirectionalLight(0xffffff, 3.2);
     rim.position.set(-2, 6, -8);
     this.#scene.add(rim);
 
@@ -240,15 +257,20 @@ class RackBuilderComponent extends HTMLElement {
 
     // Walk the model and stash a reference to each named object we care
     // about, so the toggle/color controls don't have to re-search the
-    // scene graph every time they're used. Also collect every object
-    // name that actually exists in the file, purely for the diagnostic
-    // log below — comparing "what we wanted" against "what's really
-    // there" is the fastest way to spot a typo/mismatch.
+    // scene graph every time they're used. A configured name can match
+    // several nodes (see nameMatches), so each wanted name maps to an
+    // array. Also collect every object name that actually exists in the
+    // file, purely for the diagnostic log below — comparing "what we
+    // wanted" against "what's really there" is the fastest way to spot a
+    // typo/mismatch.
     const allObjectNames = [];
     model.traverse((node) => {
       if (node.name) allObjectNames.push(node.name);
-      if (wantedNames.has(node.name)) {
-        this.#namedObjects.set(node.name, node);
+      for (const wantedName of wantedNames) {
+        if (!nameMatches(node.name, wantedName)) continue;
+        const matches = this.#namedObjects.get(wantedName) || [];
+        matches.push(node);
+        this.#namedObjects.set(wantedName, matches);
       }
     });
 
@@ -262,8 +284,8 @@ class RackBuilderComponent extends HTMLElement {
     // Hide add-on parts by default; only the frame shows until a
     // checkbox is switched on.
     addonObjectNames.forEach((name) => {
-      const object = this.#namedObjects.get(name);
-      if (object) object.visible = false;
+      const objects = this.#namedObjects.get(name) || [];
+      objects.forEach((object) => (object.visible = false));
     });
 
     // Collect materials to recolor. If specific material names were
@@ -298,7 +320,7 @@ class RackBuilderComponent extends HTMLElement {
         console.warn(`[rack-builder] configured material name(s) not found in this .glb: [${missingMaterialNames.join(', ')}]`);
       }
     } else {
-      const frameObjects = frameObjectNames.map((name) => this.#namedObjects.get(name)).filter(Boolean);
+      const frameObjects = frameObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
       frameObjects.forEach((frameObject) => {
         frameObject.traverse((node) => {
           if (!node.isMesh) return;
@@ -310,7 +332,7 @@ class RackBuilderComponent extends HTMLElement {
       });
     }
 
-    const frameObjects = frameObjectNames.map((name) => this.#namedObjects.get(name)).filter(Boolean);
+    const frameObjects = frameObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
 
     // Frame the camera around whatever loaded, regardless of the model's
     // native scale/origin.
@@ -409,8 +431,8 @@ class RackBuilderComponent extends HTMLElement {
     const checkbox = event.currentTarget;
     const objectNames = this.#addonObjectNames[checkbox.dataset.object] || [];
     objectNames.forEach((name) => {
-      const object = this.#namedObjects.get(name);
-      if (object) object.visible = checkbox.checked;
+      const objects = this.#namedObjects.get(name) || [];
+      objects.forEach((object) => (object.visible = checkbox.checked));
     });
     this.#updateTotal();
   };
