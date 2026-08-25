@@ -116,7 +116,7 @@
     height: 100dvh;
     max-height: 900px;
     width: 100%;
-    background: var(--color-background, #f1f1ef);
+    background: var(--rb-viewer-background, var(--color-background));
     border-radius: 8px;
     overflow: hidden;
   }
@@ -201,7 +201,7 @@
     margin: 0;
     padding: 0;
     border: none;
-    background: var(--color-background, #fff);
+    background: var(--color-background);
   }
 
   .rack-builder__fullscreen::backdrop {
@@ -253,7 +253,7 @@
     padding: var(--padding-md) var(--padding-lg);
     border: none;
     border-radius: 999px;
-    background: var(--color-background, #fff);
+    background: var(--color-background);
     box-shadow: var(--shadow-drawer, 0 4px 16px rgba(0, 0, 0, 0.2));
     cursor: pointer;
     font-size: 0.9rem;
@@ -273,7 +273,7 @@
     height: 100%;
     overflow-y: auto;
     padding: var(--padding-2xl, 24px);
-    background: var(--color-background, #fff);
+    background: var(--color-background);
     box-shadow: var(--shadow-drawer, -4px 0 16px rgba(0, 0, 0, 0.15));
     transform: translateX(100%);
     transition: transform var(--animation-speed, 0.3s) var(--animation-easing, ease);
@@ -330,12 +330,12 @@
     flex: 0 0 auto;
     min-width: 0;
     border: none;
-    background: var(--color-background, #f1f1ef);
+    background: var(--color-background);
     border-radius: var(--style-border-radius-buttons, 16px);
   }
 
   .rack-builder__quantity:hover {
-    background: var(--color-background, #f1f1ef);
+    background: var(--color-background);
   }
 
   .rack-builder__submit {
@@ -630,6 +630,9 @@
     --variant-picker-swatch-radius: {% if section.settings.swatch_shape == 'square' %}4px{% else %}999px{% endif %};
     --variant-picker-swatch-width: {{ section.settings.swatch_size }}px;
     --variant-picker-swatch-height: {{ section.settings.swatch_size }}px;
+    {% if section.settings.viewer_background_color %}
+      --rb-viewer-background: {{ section.settings.viewer_background_color }};
+    {% endif %}
   "
 >
   {%- if rb_product == blank -%}
@@ -829,6 +832,80 @@
           </label>
         </fieldset>
 
+        <fieldset class="variant-option variant-option--buttons variant-option--swatches" data-rack-addon-colors="weight_plates" hidden>
+          <legend>Weight plate color</legend>
+          {%- for block in section.blocks -%}
+            {%- if block.type == 'color_swatch' -%}
+              {%- if section.settings.color_selector_style == 'swatch' -%}
+                <label class="variant-option__button-label variant-option__button-label--has-swatch">
+                  <input
+                    type="radio"
+                    name="rack-builder-addon-color-weight_plates-{{ section.id }}"
+                    value="{{ block.settings.label }}"
+                    aria-label="{{ block.settings.label }}"
+                    data-rack-addon-swatch
+                    data-target="weight_plates"
+                    data-color="{{ block.settings.color }}"
+                    {% if forloop.first %}checked{% endif %}
+                  >
+                  <span class="swatch swatch--unscaled" style="--swatch-background: {{ block.settings.color }};"></span>
+                </label>
+              {%- else -%}
+                <label class="variant-option__button-label">
+                  <input
+                    type="radio"
+                    name="rack-builder-addon-color-weight_plates-{{ section.id }}"
+                    value="{{ block.settings.label }}"
+                    aria-label="{{ block.settings.label }}"
+                    data-rack-addon-swatch
+                    data-target="weight_plates"
+                    data-color="{{ block.settings.color }}"
+                    {% if forloop.first %}checked{% endif %}
+                  >
+                  <span class="variant-option__button-label__text">{{ block.settings.label }}</span>
+                </label>
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </fieldset>
+
+        <fieldset class="variant-option variant-option--buttons variant-option--swatches" data-rack-addon-colors="bench" hidden>
+          <legend>Bench color</legend>
+          {%- for block in section.blocks -%}
+            {%- if block.type == 'color_swatch' -%}
+              {%- if section.settings.color_selector_style == 'swatch' -%}
+                <label class="variant-option__button-label variant-option__button-label--has-swatch">
+                  <input
+                    type="radio"
+                    name="rack-builder-addon-color-bench-{{ section.id }}"
+                    value="{{ block.settings.label }}"
+                    aria-label="{{ block.settings.label }}"
+                    data-rack-addon-swatch
+                    data-target="bench"
+                    data-color="{{ block.settings.color }}"
+                    {% if forloop.first %}checked{% endif %}
+                  >
+                  <span class="swatch swatch--unscaled" style="--swatch-background: {{ block.settings.color }};"></span>
+                </label>
+              {%- else -%}
+                <label class="variant-option__button-label">
+                  <input
+                    type="radio"
+                    name="rack-builder-addon-color-bench-{{ section.id }}"
+                    value="{{ block.settings.label }}"
+                    aria-label="{{ block.settings.label }}"
+                    data-rack-addon-swatch
+                    data-target="bench"
+                    data-color="{{ block.settings.color }}"
+                    {% if forloop.first %}checked{% endif %}
+                  >
+                  <span class="variant-option__button-label__text">{{ block.settings.label }}</span>
+                </label>
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </fieldset>
+
         <script type="application/json" data-rack-variants>
           [
             {%- for variant in rb_product.variants -%}
@@ -958,6 +1035,12 @@
       "id": "color_scheme",
       "label": "Color scheme",
       "default": "scheme-1"
+    },
+    {
+      "type": "color",
+      "id": "viewer_background_color",
+      "label": "3D viewer background color",
+      "info": "Overrides just the 3D viewer panel's background. Leave blank to use the color scheme's background."
     },
     {
       "type": "header",

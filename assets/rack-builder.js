@@ -81,8 +81,12 @@ class RackBuilderComponent extends HTMLElement {
   #resizeObserver;
   /** @type {Map<string, any[]>} named objects found in the loaded model, keyed by configured name — an array because exporters uniquify duplicate names (e.g. left/right pins become "pins" and "pins.001") */
   #namedObjects = new Map();
-  /** @type {any[]} rubber end-cap materials found on the frame/bench, so a color swap can update all of them */
-  #capMaterials = [];
+  /** @type {any[]} rubber end-cap materials found on the frame only, driven by the main Color swatches (tied to the real variant) */
+  #frameCapMaterials = [];
+  /** @type {any[]} rubber end-cap materials found on the bench, driven by its own swatches (preview-only, shown once "Add Bench" is checked) */
+  #benchCapMaterials = [];
+  /** @type {any[]} all materials on the weight plates, driven by their own swatches (preview-only, shown once "Add Weights" is checked) */
+  #weightPlateMaterials = [];
   /** @type {{ id: string, price: number, available: boolean, options: string[] }[]} main product's variants */
   #variants = [];
   /** @type {string[]} currently selected value per product option index (Color, Size, ...) */
@@ -106,6 +110,9 @@ class RackBuilderComponent extends HTMLElement {
     });
     this.querySelectorAll('[data-rack-swatch]').forEach((el) => {
       el.addEventListener('change', this.#onSwatchChange);
+    });
+    this.querySelectorAll('[data-rack-addon-swatch]').forEach((el) => {
+      el.addEventListener('change', this.#onAddonSwatchChange);
     });
     this.querySelectorAll('[data-rack-option]').forEach((el) => {
       el.addEventListener('change', this.#onOptionChange);
@@ -275,18 +282,21 @@ class RackBuilderComponent extends HTMLElement {
       objects.forEach((object) => (object.visible = false));
     });
 
-    // Collect materials to recolor. This has two parts:
+    // Collect materials to recolor, kept in three separate groups so the
+    // frame's Color swatches (tied to the real product variant), the
+    // bench's own swatches, and the weight plates' own swatches each
+    // drive their own part independently:
     //
-    // 1. Named-material matching, scoped to the frame and bench object(s)
-    //    only (via "Rubber cap material name(s)") — e.g. the bench pad
-    //    material and, once you know its real name from the console log
-    //    below, the rack's rubber end-cap material. A color is a material
-    //    concept, and the same material can be shared across several
-    //    separate meshes (both ends of the rack, each leg of the bench),
-    //    so matching by name within this scope is more precise than
-    //    "every material found on the frame/bench object(s)". Leaving the
-    //    setting blank falls back to recoloring every material on the
-    //    frame/bench object(s) instead.
+    // 1. Named-material matching, scoped to the frame or bench object(s)
+    //    respectively (via "Rubber cap material name(s)") — e.g. the bench
+    //    pad material and, once you know its real name from the console
+    //    log below, the rack's rubber end-cap material. A color is a
+    //    material concept, and the same material can be shared across
+    //    several separate meshes (both ends of the rack, each leg of the
+    //    bench), so matching by name within this scope is more precise
+    //    than "every material found on the object(s)". Leaving the setting
+    //    blank falls back to recoloring every material on the object(s)
+    //    instead.
     // 2. The weight plates always get every one of their materials
     //    recolored, unconditionally — no name filter — so their default
     //    metal look is fully replaced by the swatch color instead of
@@ -297,43 +307,52 @@ class RackBuilderComponent extends HTMLElement {
     const weightPlatesObjects = this.#addonObjectNames.weight_plates.flatMap(
       (name) => this.#namedObjects.get(name) || []
     );
-    const namedColorableObjects = [...frameObjects, ...benchObjects];
 
     const capMaterialNames = parseObjectNameList(this.dataset.capMaterialNames).map((name) =>
       name.toLowerCase()
     );
 
-    if (capMaterialNames.length) {
+    const collectCapMaterials = (objects, target) => {
       const seenMaterialNames = new Set();
-      namedColorableObjects.forEach((object) => {
-        object.traverse((node) => {
-          if (!node.isMesh) return;
-          const materials = Array.isArray(node.material) ? node.material : [node.material];
-          materials.forEach((material) => {
-            if (!material || this.#capMaterials.includes(material)) return;
-            if (capMaterialNames.includes((material.name || '').toLowerCase())) {
-              this.#capMaterials.push(material);
-              seenMaterialNames.add(material.name);
-            }
+      if (capMaterialNames.length) {
+        objects.forEach((object) => {
+          object.traverse((node) => {
+            if (!node.isMesh) return;
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach((material) => {
+              if (!material || target.includes(material)) return;
+              if (capMaterialNames.includes((material.name || '').toLowerCase())) {
+                target.push(material);
+                seenMaterialNames.add(material.name);
+              }
+            });
           });
         });
-      });
+      } else {
+        objects.forEach((object) => {
+          object.traverse((node) => {
+            if (!node.isMesh) return;
+            const materials = Array.isArray(node.material) ? node.material : [node.material];
+            materials.forEach((material) => {
+              if (material && !target.includes(material)) target.push(material);
+            });
+          });
+        });
+      }
+      return seenMaterialNames;
+    };
+
+    const frameSeenNames = collectCapMaterials(frameObjects, this.#frameCapMaterials);
+    const benchSeenNames = collectCapMaterials(benchObjects, this.#benchCapMaterials);
+
+    if (capMaterialNames.length) {
+      const seenMaterialNames = new Set([...frameSeenNames, ...benchSeenNames]);
       const missingMaterialNames = capMaterialNames.filter(
         (name) => ![...seenMaterialNames].some((seen) => seen.toLowerCase() === name)
       );
       if (missingMaterialNames.length) {
         console.warn(`[rack-builder] configured cap material name(s) not found on the frame/bench object(s): [${missingMaterialNames.join(', ')}]`);
       }
-    } else {
-      namedColorableObjects.forEach((object) => {
-        object.traverse((node) => {
-          if (!node.isMesh) return;
-          const materials = Array.isArray(node.material) ? node.material : [node.material];
-          materials.forEach((material) => {
-            if (material && !this.#capMaterials.includes(material)) this.#capMaterials.push(material);
-          });
-        });
-      });
     }
 
     weightPlatesObjects.forEach((object) => {
@@ -341,7 +360,7 @@ class RackBuilderComponent extends HTMLElement {
         if (!node.isMesh) return;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
-          if (material && !this.#capMaterials.includes(material)) this.#capMaterials.push(material);
+          if (material && !this.#weightPlateMaterials.includes(material)) this.#weightPlateMaterials.push(material);
         });
       });
     });
@@ -369,7 +388,13 @@ class RackBuilderComponent extends HTMLElement {
     // Liquid already marked the right swatch radio "checked" for the
     // default variant — just read it and apply the color.
     const checkedSwatch = this.querySelector('[data-rack-swatch]:checked');
-    if (checkedSwatch) this.#setCapColor(checkedSwatch.dataset.color);
+    if (checkedSwatch) this.#setMaterialColor(this.#frameCapMaterials, checkedSwatch.dataset.color);
+
+    // Same for the (hidden-until-toggled) bench/weight-plate swatch groups,
+    // so they're already the right color the moment their add-on is checked.
+    this.querySelectorAll('[data-rack-addon-swatch]:checked').forEach((swatch) => {
+      this.#setMaterialColor(this.#addonMaterialsFor(swatch.dataset.target), swatch.dataset.color);
+    });
 
     this.#resizeObserver = new ResizeObserver(() => this.#resize());
     this.#resizeObserver.observe(canvasWrap);
@@ -452,20 +477,35 @@ class RackBuilderComponent extends HTMLElement {
 
   #onToggleChange = (event) => {
     const checkbox = event.currentTarget;
-    const objectNames = this.#addonObjectNames[checkbox.dataset.object] || [];
+    const target = checkbox.dataset.object;
+    const objectNames = this.#addonObjectNames[target] || [];
     objectNames.forEach((name) => {
       const objects = this.#namedObjects.get(name) || [];
       objects.forEach((object) => (object.visible = checkbox.checked));
     });
+    // Weight plates and bench each have their own (preview-only) color
+    // swatches, hidden until that add-on is actually added to the build.
+    this.querySelector(`[data-rack-addon-colors="${target}"]`)?.toggleAttribute('hidden', !checkbox.checked);
     this.#updateTotal();
   };
 
   #onSwatchChange = (event) => {
     const radio = event.currentTarget;
-    this.#setCapColor(radio.dataset.color);
+    this.#setMaterialColor(this.#frameCapMaterials, radio.dataset.color);
     this.#selectedOptions[Number(radio.dataset.optionIndex)] = radio.value;
     this.#applySelectedOptions();
   };
+
+  #onAddonSwatchChange = (event) => {
+    const radio = event.currentTarget;
+    this.#setMaterialColor(this.#addonMaterialsFor(radio.dataset.target), radio.dataset.color);
+  };
+
+  #addonMaterialsFor(target) {
+    if (target === 'bench') return this.#benchCapMaterials;
+    if (target === 'weight_plates') return this.#weightPlateMaterials;
+    return [];
+  }
 
   #onOptionChange = (event) => {
     const select = event.currentTarget;
@@ -498,9 +538,9 @@ class RackBuilderComponent extends HTMLElement {
     this.#updateTotal();
   }
 
-  #setCapColor(hexColor) {
+  #setMaterialColor(materials, hexColor) {
     if (!hexColor || !this.#THREE) return;
-    this.#capMaterials.forEach((material) => {
+    materials.forEach((material) => {
       material.color.set(hexColor);
     });
   }
