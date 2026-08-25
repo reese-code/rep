@@ -291,19 +291,23 @@
 
   .rack-builder__title {
     margin: 0 0 0.25rem;
-    font-family: var(--rb-title-font, var(--font-heading--family));
-    font-size: var(--rb-title-size, 1.25rem);
+    font-family: var(--font-heading--family);
+    font-size: 1.25rem;
   }
 
   .rack-builder__price {
-    font-family: var(--rb-body-font, var(--font-body--family));
-    font-size: var(--rb-body-size, 1.125rem);
+    font-family: var(--font-body--family);
+    font-size: 1.125rem;
     font-weight: 600;
   }
 
+  .rack-builder__price p {
+    margin: 0;
+  }
+
   .rack-builder__body-text {
-    font-family: var(--rb-body-font, var(--font-body--family));
-    font-size: var(--rb-body-size, 1rem);
+    font-family: var(--font-body--family);
+    font-size: 1rem;
   }
 
   .rack-builder__form {
@@ -324,7 +328,7 @@
   }
 
   .rack-builder__quantity {
-    --quantity-selector-width: 96px;
+    --quantity-selector-width: 132px;
     --minimum-touch-target: 44px;
 
     flex: 0 0 auto;
@@ -385,7 +389,7 @@
   }
 
   .rack-builder__note {
-    font-size: var(--rb-note-size, 0.8rem);
+    font-size: 0.8rem;
     color: #666;
   }
 
@@ -399,7 +403,7 @@
 
   .rack-builder__details-heading {
     margin: 0 0 0.5rem;
-    font-family: var(--rb-title-font, var(--font-heading--family));
+    font-family: var(--font-heading--family);
   }
 
   .rack-builder__details-group {
@@ -407,8 +411,8 @@
   }
 
   .rack-builder__accordion-heading {
-    font-family: var(--rb-body-font, var(--font-body--family));
-    font-size: var(--rb-accordion-heading-size, 0.95rem);
+    font-family: var(--font-body--family);
+    font-size: 0.95rem;
     font-weight: 600;
   }
 
@@ -449,6 +453,18 @@
   .rack-builder__addons--stacked {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  /*
+    .variant-option--buttons sets display: flex at equal specificity to the
+    UA stylesheet's [hidden] { display: none }, and author styles always
+    beat UA ones at equal specificity — so without this, checking the
+    "hidden" attribute off/on above never actually hid these fieldsets.
+    The extra class here outranks .variant-option--buttons's specificity so
+    the hidden attribute wins instead.
+  */
+  .rack-builder__addon-colors[hidden] {
+    display: none;
   }
 
   .rack-builder__addons--stacked .variant-option__button-label {
@@ -621,12 +637,6 @@
     --rb-gap-viewer-panel: {{ section.settings.gap_viewer_panel }}px;
     --rb-gap-groups: {{ section.settings.gap_groups }}px;
     --rb-gap-controls: {{ section.settings.gap_controls }}px;
-    --rb-title-font: {{ section.settings.title_font }};
-    --rb-title-size: {{ section.settings.title_size }};
-    --rb-body-font: {{ section.settings.body_font }};
-    --rb-body-size: {{ section.settings.body_size }};
-    --rb-accordion-heading-size: {{ section.settings.accordion_heading_size }};
-    --rb-note-size: {{ section.settings.note_size }};
     --variant-picker-swatch-radius: {% if section.settings.swatch_shape == 'square' %}4px{% else %}999px{% endif %};
     --variant-picker-swatch-width: {{ section.settings.swatch_size }}px;
     --variant-picker-swatch-height: {{ section.settings.swatch_size }}px;
@@ -689,8 +699,19 @@
 
       <div class="rack-builder__panel" data-rack-panel>
         <div>
-          <h3 class="rack-builder__title">{{ rb_product.title }}</h3>
-          <div class="rack-builder__price" data-rack-total>{{ rb_variant.price | money }}</div>
+          <h3 class="rack-builder__title">
+            {%- if section.settings.title_richtext != blank -%}
+              {{ section.settings.title_richtext }}
+            {%- else -%}
+              {{ rb_product.title }}
+            {%- endif -%}
+          </h3>
+          <div class="rack-builder__price">
+            {%- if section.settings.price_richtext != blank -%}
+              {{ section.settings.price_richtext }}
+            {%- endif -%}
+            <span data-rack-total>{{ rb_variant.price | money }}</span>
+          </div>
         </div>
 
         {%- if rb_color_option_index >= 0 -%}
@@ -832,7 +853,7 @@
           </label>
         </fieldset>
 
-        <fieldset class="variant-option variant-option--buttons variant-option--swatches" data-rack-addon-colors="weight_plates" hidden>
+        <fieldset class="variant-option variant-option--buttons variant-option--swatches rack-builder__addon-colors" data-rack-addon-colors="weight_plates" hidden>
           <legend>Weight plate color</legend>
           {%- for block in section.blocks -%}
             {%- if block.type == 'color_swatch' -%}
@@ -869,7 +890,7 @@
           {%- endfor -%}
         </fieldset>
 
-        <fieldset class="variant-option variant-option--buttons variant-option--swatches" data-rack-addon-colors="bench" hidden>
+        <fieldset class="variant-option variant-option--buttons variant-option--swatches rack-builder__addon-colors" data-rack-addon-colors="bench" hidden>
           <legend>Bench color</legend>
           {%- for block in section.blocks -%}
             {%- if block.type == 'color_swatch' -%}
@@ -1292,81 +1313,16 @@
       "content": "Typography"
     },
     {
-      "type": "select",
-      "id": "title_font",
-      "label": "Title font",
-      "options": [
-        { "value": "var(--font-body--family)", "label": "Body" },
-        { "value": "var(--font-subheading--family)", "label": "Subheading" },
-        { "value": "var(--font-heading--family)", "label": "Heading" },
-        { "value": "var(--font-accent--family)", "label": "Accent" }
-      ],
-      "default": "var(--font-heading--family)"
+      "type": "richtext",
+      "id": "title_richtext",
+      "label": "Custom title text",
+      "info": "Leave blank to show the product title automatically. Type your own text and use the toolbar to bold, italic, underline, or link words."
     },
     {
-      "type": "select",
-      "id": "title_size",
-      "label": "Title size",
-      "options": [
-        { "value": "1rem", "label": "16px" },
-        { "value": "1.125rem", "label": "18px" },
-        { "value": "1.25rem", "label": "20px" },
-        { "value": "1.5rem", "label": "24px" },
-        { "value": "2rem", "label": "32px" },
-        { "value": "2.5rem", "label": "40px" }
-      ],
-      "default": "1.25rem"
-    },
-    {
-      "type": "select",
-      "id": "body_font",
-      "label": "Body font (price, labels, description)",
-      "options": [
-        { "value": "var(--font-body--family)", "label": "Body" },
-        { "value": "var(--font-subheading--family)", "label": "Subheading" },
-        { "value": "var(--font-heading--family)", "label": "Heading" },
-        { "value": "var(--font-accent--family)", "label": "Accent" }
-      ],
-      "default": "var(--font-body--family)"
-    },
-    {
-      "type": "select",
-      "id": "body_size",
-      "label": "Body size",
-      "options": [
-        { "value": "0.75rem", "label": "12px" },
-        { "value": "0.875rem", "label": "14px" },
-        { "value": "1rem", "label": "16px" },
-        { "value": "1.125rem", "label": "18px" },
-        { "value": "1.25rem", "label": "20px" }
-      ],
-      "default": "1rem"
-    },
-    {
-      "type": "select",
-      "id": "accordion_heading_size",
-      "label": "Shipping/returns heading size",
-      "options": [
-        { "value": "0.75rem", "label": "12px" },
-        { "value": "0.875rem", "label": "14px" },
-        { "value": "0.95rem", "label": "15px" },
-        { "value": "1rem", "label": "16px" },
-        { "value": "1.125rem", "label": "18px" }
-      ],
-      "default": "0.95rem"
-    },
-    {
-      "type": "select",
-      "id": "note_size",
-      "label": "Note/status text size",
-      "options": [
-        { "value": "0.7rem", "label": "11px" },
-        { "value": "0.75rem", "label": "12px" },
-        { "value": "0.8rem", "label": "13px" },
-        { "value": "0.875rem", "label": "14px" },
-        { "value": "1rem", "label": "16px" }
-      ],
-      "default": "0.8rem"
+      "type": "richtext",
+      "id": "price_richtext",
+      "label": "Custom price label",
+      "info": "Optional label shown before the price (e.g. \"Starting at\"). Use the toolbar to bold, italic, underline, or link it. The price itself always stays live since it updates when add-ons are toggled."
     },
     {
       "type": "header",
