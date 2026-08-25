@@ -81,8 +81,8 @@ class RackBuilderComponent extends HTMLElement {
   #resizeObserver;
   /** @type {Map<string, any[]>} named objects found in the loaded model, keyed by configured name — an array because exporters uniquify duplicate names (e.g. left/right pins become "pins" and "pins.001") */
   #namedObjects = new Map();
-  /** @type {any[]} materials found on rack_frame, so a color swap can update all of them */
-  #frameMaterials = [];
+  /** @type {any[]} rubber end-cap materials found on the frame/bench, so a color swap can update all of them */
+  #capMaterials = [];
   /** @type {{ id: string, price: number, available: boolean, options: string[] }[]} main product's variants */
   #variants = [];
   /** @type {string[]} currently selected value per product option index (Color, Size, ...) */
@@ -94,14 +94,11 @@ class RackBuilderComponent extends HTMLElement {
 
     this.#init().catch((error) => {
       console.error('[rack-builder] failed to load viewer', error);
-      const loadingEl = this.querySelector('[data-rack-loading]');
       // Surface the real error text (not just a generic message) so it's
       // visible without opening devtools — e.g. a WebGL failure, a 404 on
       // the .glb, or a CORS error all say something different here.
-      if (loadingEl) {
-        loadingEl.hidden = false;
-        loadingEl.textContent = `Couldn't load the 3D model: ${error.message}`;
-      }
+      const statusEl = this.querySelector('[data-rack-cart-status]');
+      if (statusEl) statusEl.textContent = `Couldn't load the 3D model: ${error.message}`;
     });
 
     this.querySelectorAll('[data-rack-toggle]').forEach((el) => {
@@ -166,7 +163,6 @@ class RackBuilderComponent extends HTMLElement {
   async #init() {
     const glbUrl = this.dataset.glbUrl;
     const canvasWrap = this.querySelector('[data-rack-canvas]');
-    const loadingEl = this.querySelector('[data-rack-loading]');
     if (!glbUrl || !canvasWrap) return;
 
     const { THREE, GLTFLoader, OrbitControls } = await loadThree();
@@ -223,31 +219,7 @@ class RackBuilderComponent extends HTMLElement {
     this.#scene.add(rim);
 
     const loader = new GLTFLoader();
-    // If no progress event has arrived after a few seconds, the browser
-    // likely hasn't gotten a single byte back yet (slow/stalled
-    // connection, or the request never really started) — say so instead
-    // of leaving the shopper staring at an unchanging "Loading…" label.
-    let receivedProgress = false;
-    const stallTimeout = setTimeout(() => {
-      if (!receivedProgress && loadingEl) {
-        loadingEl.textContent = 'Still downloading the 3D model — this file is large, hang tight…';
-      }
-    }, 6000);
-
-    const gltf = await new Promise((resolve, reject) =>
-      loader.load(
-        glbUrl,
-        resolve,
-        (progress) => {
-          receivedProgress = true;
-          if (!loadingEl || !progress.lengthComputable) return;
-          const percent = Math.round((progress.loaded / progress.total) * 100);
-          const totalMb = (progress.total / 1024 / 1024).toFixed(1);
-          loadingEl.textContent = `Loading 3D model… ${percent}% of ${totalMb}MB`;
-        },
-        reject
-      )
-    ).finally(() => clearTimeout(stallTimeout));
+    const gltf = await new Promise((resolve, reject) => loader.load(glbUrl, resolve, undefined, reject));
     const model = gltf.scene;
     this.#scene.add(model);
 
@@ -264,8 +236,15 @@ class RackBuilderComponent extends HTMLElement {
     // wanted" against "what's really there" is the fastest way to spot a
     // typo/mismatch.
     const allObjectNames = [];
+    const allMaterialNames = new Set();
     model.traverse((node) => {
       if (node.name) allObjectNames.push(node.name);
+      if (node.isMesh) {
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach((material) => {
+          if (material?.name) allMaterialNames.add(material.name);
+        });
+      }
       for (const wantedName of wantedNames) {
         if (!nameMatches(node.name, wantedName)) continue;
         const matches = this.#namedObjects.get(wantedName) || [];
@@ -278,7 +257,8 @@ class RackBuilderComponent extends HTMLElement {
     console.info(
       `[rack-builder] configured object names found: [${[...this.#namedObjects.keys()].join(', ')}]`,
       missingNames.length ? `\nNOT found (typo, or not this model): [${missingNames.join(', ')}]` : '',
-      `\nAll object names actually in this .glb: [${allObjectNames.join(', ')}]`
+      `\nAll object names actually in this .glb: [${allObjectNames.join(', ')}]`,
+      `\nAll material names actually in this .glb (use these for "Bench pad / rubber cap material name(s)" in section settings): [${[...allMaterialNames].join(', ')}]`
     );
 
     // Hide add-on parts by default; only the frame shows until a
@@ -288,51 +268,76 @@ class RackBuilderComponent extends HTMLElement {
       objects.forEach((object) => (object.visible = false));
     });
 
-    // Collect materials to recolor. If specific material names were
-    // configured (Frame material name(s) setting), search the whole
-    // model for materials matching those names — a color is a material
-    // concept, and the same material can be shared across several
-    // objects (or one object can use several materials), so this is
-    // more precise than "every material found on the frame object(s)".
-    // Falls back to the old object-based collection if that setting is
-    // left blank.
-    const frameMaterialNames = parseObjectNameList(this.dataset.frameMaterialNames).map((name) =>
+    // Collect materials to recolor. This has two parts:
+    //
+    // 1. Named-material matching, scoped to the frame and bench object(s)
+    //    only (via "Rubber cap material name(s)") — e.g. the bench pad
+    //    material and, once you know its real name from the console log
+    //    below, the rack's rubber end-cap material. A color is a material
+    //    concept, and the same material can be shared across several
+    //    separate meshes (both ends of the rack, each leg of the bench),
+    //    so matching by name within this scope is more precise than
+    //    "every material found on the frame/bench object(s)". Leaving the
+    //    setting blank falls back to recoloring every material on the
+    //    frame/bench object(s) instead.
+    // 2. The weight plates always get every one of their materials
+    //    recolored, unconditionally — no name filter — so their default
+    //    metal look is fully replaced by the swatch color instead of
+    //    staying plain steel.
+    const frameObjects = frameObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
+    const benchObjectNames = this.#addonObjectNames.bench;
+    const benchObjects = benchObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
+    const weightPlatesObjects = this.#addonObjectNames.weight_plates.flatMap(
+      (name) => this.#namedObjects.get(name) || []
+    );
+    const namedColorableObjects = [...frameObjects, ...benchObjects];
+
+    const capMaterialNames = parseObjectNameList(this.dataset.capMaterialNames).map((name) =>
       name.toLowerCase()
     );
 
-    if (frameMaterialNames.length) {
+    if (capMaterialNames.length) {
       const seenMaterialNames = new Set();
-      model.traverse((node) => {
-        if (!node.isMesh) return;
-        const materials = Array.isArray(node.material) ? node.material : [node.material];
-        materials.forEach((material) => {
-          if (!material || this.#frameMaterials.includes(material)) return;
-          if (frameMaterialNames.includes((material.name || '').toLowerCase())) {
-            this.#frameMaterials.push(material);
-            seenMaterialNames.add(material.name);
-          }
-        });
-      });
-      const missingMaterialNames = frameMaterialNames.filter(
-        (name) => ![...seenMaterialNames].some((seen) => seen.toLowerCase() === name)
-      );
-      if (missingMaterialNames.length) {
-        console.warn(`[rack-builder] configured material name(s) not found in this .glb: [${missingMaterialNames.join(', ')}]`);
-      }
-    } else {
-      const frameObjects = frameObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
-      frameObjects.forEach((frameObject) => {
-        frameObject.traverse((node) => {
+      namedColorableObjects.forEach((object) => {
+        object.traverse((node) => {
           if (!node.isMesh) return;
           const materials = Array.isArray(node.material) ? node.material : [node.material];
           materials.forEach((material) => {
-            if (material && !this.#frameMaterials.includes(material)) this.#frameMaterials.push(material);
+            if (!material || this.#capMaterials.includes(material)) return;
+            if (capMaterialNames.includes((material.name || '').toLowerCase())) {
+              this.#capMaterials.push(material);
+              seenMaterialNames.add(material.name);
+            }
+          });
+        });
+      });
+      const missingMaterialNames = capMaterialNames.filter(
+        (name) => ![...seenMaterialNames].some((seen) => seen.toLowerCase() === name)
+      );
+      if (missingMaterialNames.length) {
+        console.warn(`[rack-builder] configured cap material name(s) not found on the frame/bench object(s): [${missingMaterialNames.join(', ')}]`);
+      }
+    } else {
+      namedColorableObjects.forEach((object) => {
+        object.traverse((node) => {
+          if (!node.isMesh) return;
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((material) => {
+            if (material && !this.#capMaterials.includes(material)) this.#capMaterials.push(material);
           });
         });
       });
     }
 
-    const frameObjects = frameObjectNames.flatMap((name) => this.#namedObjects.get(name) || []);
+    weightPlatesObjects.forEach((object) => {
+      object.traverse((node) => {
+        if (!node.isMesh) return;
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach((material) => {
+          if (material && !this.#capMaterials.includes(material)) this.#capMaterials.push(material);
+        });
+      });
+    });
 
     // Frame the camera around whatever loaded, regardless of the model's
     // native scale/origin.
@@ -357,12 +362,11 @@ class RackBuilderComponent extends HTMLElement {
     // Liquid already marked the right swatch radio "checked" for the
     // default variant — just read it and apply the color.
     const checkedSwatch = this.querySelector('[data-rack-swatch]:checked');
-    if (checkedSwatch) this.#setFrameColor(checkedSwatch.dataset.color);
+    if (checkedSwatch) this.#setCapColor(checkedSwatch.dataset.color);
 
     this.#resizeObserver = new ResizeObserver(() => this.#resize());
     this.#resizeObserver.observe(canvasWrap);
 
-    if (loadingEl) loadingEl.hidden = true;
     this.#startRenderLoop();
   }
 
@@ -439,7 +443,7 @@ class RackBuilderComponent extends HTMLElement {
 
   #onSwatchChange = (event) => {
     const radio = event.currentTarget;
-    this.#setFrameColor(radio.dataset.color);
+    this.#setCapColor(radio.dataset.color);
     this.#selectedOptions[Number(radio.dataset.optionIndex)] = radio.value;
     this.#applySelectedOptions();
   };
@@ -475,9 +479,9 @@ class RackBuilderComponent extends HTMLElement {
     this.#updateTotal();
   }
 
-  #setFrameColor(hexColor) {
+  #setCapColor(hexColor) {
     if (!hexColor || !this.#THREE) return;
-    this.#frameMaterials.forEach((material) => {
+    this.#capMaterials.forEach((material) => {
       material.color.set(hexColor);
     });
   }

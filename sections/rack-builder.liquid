@@ -6,23 +6,27 @@
   in admin under Media, no separate file hosting needed). The model is
   expected to contain these named objects, matching the Blender export:
 
-    rack_frame     - always visible, material "Rack_Steel" recolored by
+    rack_frame     - always visible; its rubber end caps (identified by
+                      material name, not the whole frame) are recolored by
                       the swatch buttons
     bar             - toggled by the "Add Bar" checkbox
     weight_plates   - toggled by the "Add Weights" checkbox
-    bench           - toggled by the "Add Bench" checkbox
+    bench           - toggled by the "Add Bench" checkbox; its rubber end
+                      caps are recolored the same way as the rack's
 
   Color swatches and add-ons are backed by real Shopify data, configured in
   admin rather than hardcoded here:
 
   - Color: give the main product a variant option named exactly "Color"
     (Product > Variants) with values matching each swatch block's Label
-    below (e.g. "Black", "Red"). Clicking a swatch both recolors the 3D
-    model AND switches to the matching real variant (price/availability
-    included). If the option doesn't exist yet, or a color doesn't have a
-    matching variant, the swatch still recolors the model but can't change
-    what gets added to cart. Any other options the product has (Size,
-    etc.) render as native-styled dropdowns below the swatches.
+    below (e.g. "Black", "Red"). Clicking a swatch both recolors the rubber
+    end caps on the rack and bench AND switches to the matching real
+    variant (price/availability included) — it does not recolor the rack
+    frame itself or the bench pad. If the option doesn't exist yet, or a
+    color doesn't have a matching variant, the swatch still recolors the
+    3D preview but can't change what gets added to cart. Any other options
+    the product has (Size, etc.) render as native-styled dropdowns below
+    the swatches.
   - Add-ons: pick a real product for "Bar product" / "Weight plates
     product" / "Bench product" in the section settings below (each can be
     a plain, separately-sold product). Checking the box adds that
@@ -128,20 +132,6 @@
     display: block;
     width: 100%;
     height: 100%;
-  }
-
-  .rack-builder__loading {
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem;
-    font-size: 0.8rem;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.55);
-    z-index: 1;
   }
 
   .rack-builder__expand {
@@ -362,7 +352,7 @@
   }
 
   .rack-builder__note {
-    font-size: 0.8rem;
+    font-size: var(--rb-note-size, 0.8rem);
     color: #666;
   }
 
@@ -379,10 +369,14 @@
     font-family: var(--rb-title-font, var(--font-heading--family));
   }
 
-  .rack-builder__details-group h4 {
-    margin: 0 0 0.35rem;
+  .rack-builder__details-group {
+    padding: 0;
+  }
+
+  .rack-builder__accordion-heading {
     font-family: var(--rb-body-font, var(--font-body--family));
-    font-size: 0.95rem;
+    font-size: var(--rb-accordion-heading-size, 0.95rem);
+    font-weight: 600;
   }
 
   .rack-builder__details-group .rack-builder__body-text {
@@ -598,6 +592,8 @@
     --rb-title-size: {{ section.settings.title_size }};
     --rb-body-font: {{ section.settings.body_font }};
     --rb-body-size: {{ section.settings.body_size }};
+    --rb-accordion-heading-size: {{ section.settings.accordion_heading_size }};
+    --rb-note-size: {{ section.settings.note_size }};
     --variant-picker-swatch-radius: {% if section.settings.swatch_shape == 'square' %}4px{% else %}999px{% endif %};
     --variant-picker-swatch-width: {{ section.settings.swatch_size }}px;
     --variant-picker-swatch-height: {{ section.settings.swatch_size }}px;
@@ -618,14 +614,13 @@
       data-color-option-index="{{ rb_color_option_index }}"
       data-initial-variant-id="{{ rb_variant.id }}"
       data-frame-object="{{ section.settings.frame_object_name }}"
-      data-frame-material-names="{{ section.settings.frame_material_names }}"
+      data-cap-material-names="{{ section.settings.cap_material_names }}"
       data-bar-object="{{ section.settings.bar_object_name }}"
       data-weight-plates-object="{{ section.settings.weight_plates_object_name }}"
       data-bench-object="{{ section.settings.bench_object_name }}"
     >
       <div class="rack-builder__viewer" data-rack-viewer>
         <div class="rack-builder__canvas-wrap" data-rack-canvas></div>
-        <div class="rack-builder__loading" data-rack-loading>Loading 3D model…</div>
         <button
           type="button"
           class="rack-builder__expand"
@@ -847,17 +842,31 @@
             {%- endif -%}
 
             {%- if section.settings.shipping_text != blank -%}
-              <div class="rack-builder__details-group">
-                <h4>Shipping</h4>
-                <div class="rack-builder__body-text">{{ section.settings.shipping_text }}</div>
-              </div>
+              <accordion-custom class="rack-builder__details-group">
+                <details class="details">
+                  <summary class="details__header rack-builder__accordion-heading">
+                    Shipping
+                    <span class="svg-wrapper icon-plus">
+                      {{- 'icon-plus.svg' | inline_asset_content -}}
+                    </span>
+                  </summary>
+                  <div class="details-content rack-builder__body-text">{{ section.settings.shipping_text }}</div>
+                </details>
+              </accordion-custom>
             {%- endif -%}
 
             {%- if section.settings.returns_text != blank -%}
-              <div class="rack-builder__details-group">
-                <h4>Returns</h4>
-                <div class="rack-builder__body-text">{{ section.settings.returns_text }}</div>
-              </div>
+              <accordion-custom class="rack-builder__details-group">
+                <details class="details">
+                  <summary class="details__header rack-builder__accordion-heading">
+                    Returns
+                    <span class="svg-wrapper icon-plus">
+                      {{- 'icon-plus.svg' | inline_asset_content -}}
+                    </span>
+                  </summary>
+                  <div class="details-content rack-builder__body-text">{{ section.settings.returns_text }}</div>
+                </details>
+              </accordion-custom>
             {%- endif -%}
           </div>
         {%- endif -%}
@@ -918,14 +927,14 @@
       "id": "frame_object_name",
       "label": "Frame object name(s)",
       "default": "rack_frame",
-      "info": "Used to frame the camera on load. Comma-separate multiple names. Only recolors materials too if \"Frame material name(s)\" below is left blank."
+      "info": "Used to frame the camera on load. Comma-separate multiple names."
     },
     {
       "type": "text",
-      "id": "frame_material_names",
-      "label": "Frame material name(s) to recolor",
-      "default": "fake leather, metal 2, shiny metal",
-      "info": "Recolored by the swatches — searches the whole model by material name, not just the frame object (useful when one mesh mixes a material you want with one you don't). Leave blank to recolor every material on the frame object(s) instead."
+      "id": "cap_material_names",
+      "label": "Bench pad / rubber cap material name(s) to recolor",
+      "default": "fake leather",
+      "info": "Recolored by the swatches — matches material names on the rack frame and bench only (bar unaffected; weight plates always recolor fully). Add the rack's cap material name here once found via the browser console log. Blank recolors every frame/bench material (not recommended)."
     },
     {
       "type": "text",
@@ -1204,6 +1213,32 @@
         { "value": "1.25rem", "label": "20px" }
       ],
       "default": "1rem"
+    },
+    {
+      "type": "select",
+      "id": "accordion_heading_size",
+      "label": "Shipping/returns heading size",
+      "options": [
+        { "value": "0.75rem", "label": "12px" },
+        { "value": "0.875rem", "label": "14px" },
+        { "value": "0.95rem", "label": "15px" },
+        { "value": "1rem", "label": "16px" },
+        { "value": "1.125rem", "label": "18px" }
+      ],
+      "default": "0.95rem"
+    },
+    {
+      "type": "select",
+      "id": "note_size",
+      "label": "Note/status text size",
+      "options": [
+        { "value": "0.7rem", "label": "11px" },
+        { "value": "0.75rem", "label": "12px" },
+        { "value": "0.8rem", "label": "13px" },
+        { "value": "0.875rem", "label": "14px" },
+        { "value": "1rem", "label": "16px" }
+      ],
+      "default": "0.8rem"
     },
     {
       "type": "header",
