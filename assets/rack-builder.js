@@ -117,6 +117,8 @@ class RackBuilderComponent extends HTMLElement {
     this.querySelector('[data-rack-expand]')?.addEventListener('click', this.#openFullscreen);
     this.querySelector('[data-rack-collapse]')?.addEventListener('click', this.#closeFullscreen);
     this.querySelector('[data-rack-panel-toggle]')?.addEventListener('click', this.#toggleFullscreenPanel);
+    this.querySelector('[data-rack-zoom-in]')?.addEventListener('click', () => this.#zoomBy(0.8));
+    this.querySelector('[data-rack-zoom-out]')?.addEventListener('click', () => this.#zoomBy(1.25));
     // The native <dialog> "close" event fires both when we call
     // dialog.close() ourselves and when the shopper presses Escape, so
     // this is the one place that needs to move the viewer/panel back.
@@ -197,6 +199,11 @@ class RackBuilderComponent extends HTMLElement {
     this.#controls.target.set(0, 1, 0);
     this.#controls.enableDamping = true;
     this.#controls.enableZoom = true;
+    // Slow idle spin so the model isn't static — OrbitControls only applies
+    // this while the shopper isn't actively dragging (state === NONE), so
+    // it automatically pauses on interaction and resumes after release.
+    this.#controls.autoRotate = true;
+    this.#controls.autoRotateSpeed = 0.6;
 
     // Simple studio-style lighting rig: soft ambient fill + a strong key
     // light, a softer fill light from the opposite side to open up
@@ -377,6 +384,18 @@ class RackBuilderComponent extends HTMLElement {
       this.#frameId = requestAnimationFrame(tick);
     };
     this.#frameId = requestAnimationFrame(tick);
+  }
+
+  // Moves the camera along its existing line to the orbit target rather than
+  // calling OrbitControls' internal dolly methods (not part of its public
+  // API) — controls.update() re-derives spherical.radius from the camera's
+  // position every frame and re-clamps it to minDistance/maxDistance, so a
+  // plain position scale ends up identical to a real dolly in/out.
+  #zoomBy(factor) {
+    if (!this.#camera || !this.#controls) return;
+    const offset = this.#camera.position.clone().sub(this.#controls.target).multiplyScalar(factor);
+    this.#camera.position.copy(this.#controls.target).add(offset);
+    this.#controls.update();
   }
 
   #resize() {
