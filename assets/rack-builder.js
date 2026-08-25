@@ -9,6 +9,8 @@
 // getting a name wrong should just make that one toggle inert rather than
 // break the whole viewer.
 
+import { isMobileBreakpoint } from './utilities.js';
+
 // Vendored as theme assets (same approach as cart-ar-setup.js) rather than
 // pulled from a CDN at runtime, so this doesn't depend on an external host
 // being reachable or on the storefront's CSP allowing it. Relative imports
@@ -110,6 +112,8 @@ class RackBuilderComponent extends HTMLElement {
   #variants = [];
   /** @type {string[]} currently selected value per product option index (Color, Size, ...) */
   #selectedOptions = [];
+  /** @type {AbortController} scopes the mobile panel's swipe-gesture listeners so they're cleanly removed in disconnectedCallback */
+  #swipeController = new AbortController();
 
   connectedCallback() {
     this.#loadVariants();
@@ -150,6 +154,10 @@ class RackBuilderComponent extends HTMLElement {
     // dialog.close() ourselves and when the shopper presses Escape, so
     // this is the one place that needs to move the viewer/panel back.
     this.querySelector('[data-rack-fullscreen-dialog]')?.addEventListener('close', this.#onFullscreenClose);
+
+    this.querySelector('[data-rack-mobile-menu]')?.addEventListener('click', this.#toggleMobilePanel);
+    this.querySelector('[data-rack-mobile-panel-close]')?.addEventListener('click', this.#closeMobilePanel);
+    this.#initMobilePanelSwipe();
   }
 
   disconnectedCallback() {
@@ -157,6 +165,7 @@ class RackBuilderComponent extends HTMLElement {
     this.#resizeObserver?.disconnect();
     this.#controls?.dispose();
     this.#renderer?.dispose();
+    this.#swipeController.abort();
   }
 
   /** Maps a checkbox's semantic data-object ("bar", "weight_plates", "bench") to the actual object name(s) in this model, as configured in the section's settings. */
@@ -614,6 +623,109 @@ class RackBuilderComponent extends HTMLElement {
     const panel = this.querySelector('[data-rack-fullscreen-panel]');
     panel?.toggleAttribute('data-open', !panel.hasAttribute('data-open'));
   };
+
+  // Mobile-only slide-over: the three-dot button (in the same spot as the
+  // desktop-only fullscreen expand button — see the width < 750px rules in
+  // rack-builder.liquid) opens .rack-builder__panel itself as an overlay on
+  // top of the viewer, rather than opening the fullscreen dialog. Reading
+  // .rack-builder__panel via querySelector (not a cached reference) always
+  // finds the one real panel element wherever it currently lives, same as
+  // #openFullscreen/#onFullscreenClose above.
+  #toggleMobilePanel = () => {
+    const panel = this.querySelector('.rack-builder__panel');
+    const menuButton = this.querySelector('[data-rack-mobile-menu]');
+    const open = !panel?.hasAttribute('data-open');
+    panel?.toggleAttribute('data-open', open);
+    menuButton?.setAttribute('aria-expanded', String(open));
+  };
+
+  #closeMobilePanel = () => {
+    const panel = this.querySelector('.rack-builder__panel');
+    const menuButton = this.querySelector('[data-rack-mobile-menu]');
+    panel?.removeAttribute('data-open');
+    menuButton?.setAttribute('aria-expanded', 'false');
+  };
+
+  // Lightweight swipe support: a left-swipe starting near the viewer's
+  // right edge opens the panel, a right-swipe anywhere on the open panel
+  // closes it. Only the start/end points are compared (no live tracking of
+  // touchmove) so this doesn't need to fight OrbitControls' own touch
+  // listeners on the canvas for every move event — those keep working
+  // normally, and only a swipe that starts right at the edge (where a
+  // shopper wouldn't be trying to rotate the model anyway) is treated as
+  // "open the panel".
+  #initMobilePanelSwipe() {
+    const viewer = this.querySelector('[data-rack-viewer]');
+    const panel = this.querySelector('.rack-builder__panel');
+    if (!viewer || !panel) return;
+
+    const EDGE_ZONE = 32;
+    const SWIPE_THRESHOLD = 60;
+    const { signal } = this.#swipeController;
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    viewer.addEventListener(
+      'touchstart',
+      (event) => {
+        const touch = event.touches[0];
+        tracking = false;
+        if (!touch || !isMobileBreakpoint() || panel.hasAttribute('data-open')) return;
+        const rect = viewer.getBoundingClientRect();
+        if (touch.clientX < rect.right - EDGE_ZONE) return;
+        tracking = true;
+        startX = touch.clientX;
+        startY = touch.clientY;
+      },
+      { passive: true, signal }
+    );
+
+    viewer.addEventListener(
+      'touchend',
+      (event) => {
+        if (!tracking) return;
+        tracking = false;
+        const touch = event.changedTouches[0];
+        if (!touch) return;
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+        if (deltaX < -SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
+          this.#toggleMobilePanel();
+        }
+      },
+      { passive: true, signal }
+    );
+
+    panel.addEventListener(
+      'touchstart',
+      (event) => {
+        const touch = event.touches[0];
+        tracking = false;
+        if (!touch || !isMobileBreakpoint() || !panel.hasAttribute('data-open')) return;
+        tracking = true;
+        startX = touch.clientX;
+        startY = touch.clientY;
+      },
+      { passive: true, signal }
+    );
+
+    panel.addEventListener(
+      'touchend',
+      (event) => {
+        if (!tracking) return;
+        tracking = false;
+        const touch = event.changedTouches[0];
+        if (!touch) return;
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+        if (deltaX > SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
+          this.#closeMobilePanel();
+        }
+      },
+      { passive: true, signal }
+    );
+  }
 
   #onToggleChange = (event) => {
     const checkbox = event.currentTarget;

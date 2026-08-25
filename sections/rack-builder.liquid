@@ -198,6 +198,60 @@
   }
 
   /*
+    On mobile, the expand/fullscreen button is swapped out for a three-dot
+    menu button in the same spot — same circular button style as .rack-builder__expand
+    and the zoom controls — that opens the options panel as a slide-over
+    instead, since the panel would otherwise just stack below the viewer.
+    .rack-builder__expand stays for desktop, where the side-by-side layout
+    already shows the panel and fullscreen is still useful. Both buttons'
+    show/hide (and the mobile menu's own display: none default here) live
+    in the width < 750px media query below, scoped to the non-fullscreen
+    viewer so the mobile menu button disappears on its own once
+    #openFullscreen relocates the viewer into the dialog, rather than
+    doubling up with the fullscreen view's own "Details" toggle.
+  */
+  .rack-builder__mobile-menu {
+    display: none;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: #111;
+    cursor: pointer;
+  }
+
+  .rack-builder__mobile-panel-close {
+    display: none;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 2;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: #111;
+    cursor: pointer;
+  }
+
+  .rack-builder__mobile-panel-close .svg-wrapper svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /*
     A fullscreen native <dialog> holding the SAME canvas + panel elements
     (moved here via JS on open, moved back on close — not cloned) so the
     same Three.js renderer, event listeners, and form controls just work
@@ -301,6 +355,55 @@
     gap: var(--rb-gap-groups, 24px);
   }
 
+  /*
+    Below width 750px, .rack-builder__wrap only has one grid column (see
+    the base rule up top), so the panel would otherwise render as a second
+    block stacked under the viewer. Instead, scoped to when the panel is
+    still a *direct* child of .rack-builder__wrap (i.e. not currently moved
+    into the fullscreen dialog — see #openFullscreen/#onFullscreenClose in
+    rack-builder.js), it's taken out of flow and turned into a slide-over
+    that covers the viewer exactly, opened by the three-dot menu button and
+    closed by its own close button or a swipe — both wired up in
+    rack-builder.js. Removing it from flow also means .rack-builder__wrap's
+    height on mobile collapses to just the viewer's height, which is what
+    lets the panel's inset: 0 line up with the viewer underneath it.
+  */
+  @media screen and (width < 750px) {
+    .rack-builder__wrap {
+      position: relative;
+    }
+
+    .rack-builder__wrap > .rack-builder__viewer .rack-builder__expand {
+      display: none;
+    }
+
+    .rack-builder__wrap > .rack-builder__viewer .rack-builder__mobile-menu {
+      display: flex;
+    }
+
+    .rack-builder__wrap > .rack-builder__panel {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      overflow-y: auto;
+      margin: 0;
+      padding: var(--padding-2xl, 24px);
+      background: var(--color-background);
+      border-radius: 8px;
+      box-shadow: var(--shadow-drawer, -4px 0 16px rgba(0, 0, 0, 0.15));
+      transform: translateX(100%);
+      transition: transform var(--animation-speed, 0.3s) var(--animation-easing, ease);
+    }
+
+    .rack-builder__wrap > .rack-builder__panel[data-open] {
+      transform: translateX(0);
+    }
+
+    .rack-builder__wrap > .rack-builder__panel .rack-builder__mobile-panel-close {
+      display: flex;
+    }
+  }
+
   .rack-builder__title {
     margin: 0 0 0.25rem;
     font-family: var(--font-heading--family);
@@ -337,6 +440,16 @@
     gap: var(--padding-sm);
     width: 100%;
     max-width: 100%;
+  }
+
+  @media screen and (width < 750px) {
+    .rack-builder__cart-row--stack-mobile {
+      flex-direction: column;
+    }
+
+    .rack-builder__cart-row--stack-mobile .rack-builder__quantity {
+      width: 100%;
+    }
   }
 
   .rack-builder__quantity {
@@ -696,6 +809,19 @@
             />
           </svg>
         </button>
+        <button
+          type="button"
+          class="rack-builder__mobile-menu"
+          data-rack-mobile-menu
+          aria-label="Show color, add-ons, and details"
+          aria-expanded="false"
+        >
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" width="18" height="18">
+            <circle cx="4.5" cy="10" r="1.6" fill="currentColor" />
+            <circle cx="10" cy="10" r="1.6" fill="currentColor" />
+            <circle cx="15.5" cy="10" r="1.6" fill="currentColor" />
+          </svg>
+        </button>
         <div class="rack-builder__zoom">
           <button type="button" class="rack-builder__zoom-btn" data-rack-zoom-in aria-label="Zoom in">
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" width="16" height="16">
@@ -721,6 +847,14 @@
       </div>
 
       <div class="rack-builder__panel" data-rack-panel>
+        <button
+          type="button"
+          class="rack-builder__mobile-panel-close"
+          data-rack-mobile-panel-close
+          aria-label="Close options menu"
+        >
+          <span class="svg-wrapper">{{- 'icon-close.svg' | inline_asset_content -}}</span>
+        </button>
         <div>
           <h3 class="rack-builder__title">
             {%- if section.settings.title_richtext != blank -%}
@@ -972,7 +1106,7 @@
             data-rack-variant-id
           >
 
-          <div class="rack-builder__cart-row">
+          <div class="rack-builder__cart-row{% if section.settings.stack_cart_row_mobile %} rack-builder__cart-row--stack-mobile{% endif %}">
             {%- if section.settings.show_quantity_selector -%}
               {% render 'quantity-selector', product: rb_product, class: 'rack-builder__quantity' %}
             {%- endif -%}
@@ -1258,6 +1392,13 @@
       "type": "checkbox",
       "id": "show_quantity_selector",
       "label": "Show quantity selector",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "stack_cart_row_mobile",
+      "label": "Stack quantity and Add to cart on mobile",
+      "info": "Below 750px wide, shows the quantity selector above the Add to cart button instead of side by side.",
       "default": true
     },
     {
