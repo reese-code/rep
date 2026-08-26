@@ -114,6 +114,8 @@ class RackBuilderComponent extends HTMLElement {
   #selectedOptions = [];
   /** @type {AbortController} scopes the mobile panel's swipe-gesture listeners so they're cleanly removed in disconnectedCallback */
   #swipeController = new AbortController();
+  /** @type {any} timer that fades out the "use two fingers" hint after 3s */
+  #gestureHintTimeout;
 
   connectedCallback() {
     this.#loadVariants();
@@ -158,6 +160,7 @@ class RackBuilderComponent extends HTMLElement {
     this.querySelector('[data-rack-mobile-menu]')?.addEventListener('click', this.#toggleMobilePanel);
     this.querySelector('[data-rack-mobile-panel-close]')?.addEventListener('click', this.#closeMobilePanel);
     this.#initMobilePanelSwipe();
+    this.#initGestureHint();
   }
 
   disconnectedCallback() {
@@ -166,6 +169,7 @@ class RackBuilderComponent extends HTMLElement {
     this.#controls?.dispose();
     this.#renderer?.dispose();
     this.#swipeController.abort();
+    clearTimeout(this.#gestureHintTimeout);
   }
 
   /** Maps a checkbox's semantic data-object ("bar", "weight_plates", "bench") to the actual object name(s) in this model, as configured in the section's settings. */
@@ -228,13 +232,25 @@ class RackBuilderComponent extends HTMLElement {
     this.#camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     this.#camera.position.set(3, 2.5, 4);
 
-    // Orbit controls: left-drag rotates, scroll-wheel/pinch zooms
-    // in and out, right-drag pans. Distance limits get set once the
-    // model's real size is known, below.
+    // Orbit controls: left-drag orbits (single click, no modifier needed),
+    // scroll-wheel/pinch zooms in and out, right-drag pans. Distance
+    // limits get set once the model's real size is known, below.
     this.#controls = new OrbitControls(this.#camera, this.#renderer.domElement);
     this.#controls.target.set(0, 1, 0);
     this.#controls.enableDamping = true;
     this.#controls.enableZoom = true;
+    this.#controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    this.#controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+    // A single finger is left alone so it falls through to the page's
+    // normal vertical scroll instead of moving the model — only a second
+    // finger engages the camera, pinching to zoom and dragging to orbit
+    // (matching the desktop left-drag above, not a pan). OrbitControls sets
+    // touchAction: 'none' on the canvas by default to stop the browser
+    // fighting its own single-finger handling; pan-y un-blocks one-finger
+    // vertical scroll now that a lone finger no longer drives the camera.
+    this.#controls.touches.ONE = undefined;
+    this.#controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
+    this.#renderer.domElement.style.touchAction = 'pan-y';
     // Slow idle spin so the model isn't static — OrbitControls only applies
     // this while the shopper isn't actively dragging (state === NONE), so
     // it automatically pauses on interaction and resumes after release.
@@ -721,6 +737,34 @@ class RackBuilderComponent extends HTMLElement {
         const deltaY = touch.clientY - startY;
         if (deltaX > SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
           this.#closeMobilePanel();
+        }
+      },
+      { passive: true, signal }
+    );
+  }
+
+  // Now that a single finger no longer rotates the model (see the
+  // touches.ONE change in #init), a shopper's first one-finger touch on the
+  // viewer needs a nudge toward the two-finger gesture that actually moves
+  // it. Shown on touch-start with one finger down, hidden as soon as a
+  // second finger joins (the gesture they were being told to use) or after
+  // 3 seconds, whichever comes first.
+  #initGestureHint() {
+    const viewer = this.querySelector('[data-rack-viewer]');
+    const hint = this.querySelector('[data-rack-gesture-hint]');
+    if (!viewer || !hint) return;
+
+    const { signal } = this.#swipeController;
+
+    viewer.addEventListener(
+      'touchstart',
+      (event) => {
+        clearTimeout(this.#gestureHintTimeout);
+        if (event.touches.length === 1) {
+          hint.setAttribute('data-visible', '');
+          this.#gestureHintTimeout = setTimeout(() => hint.removeAttribute('data-visible'), 3000);
+        } else {
+          hint.removeAttribute('data-visible');
         }
       },
       { passive: true, signal }

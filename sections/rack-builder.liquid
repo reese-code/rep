@@ -197,6 +197,28 @@
     cursor: not-allowed;
   }
 
+  .rack-builder__gesture-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 3;
+    transform: translate(-50%, -50%);
+    padding: var(--padding-md, 10px) var(--padding-lg, 16px);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: var(--shadow-drawer, 0 4px 16px rgba(0, 0, 0, 0.15));
+    color: #111;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .rack-builder__gesture-hint[data-visible] {
+    opacity: 1;
+  }
+
   /*
     On mobile, the expand/fullscreen button is swapped out for a three-dot
     menu button in the same spot — same circular button style as .rack-builder__expand
@@ -401,6 +423,10 @@
 
     .rack-builder__wrap > .rack-builder__panel .rack-builder__mobile-panel-close {
       display: flex;
+    }
+
+    .rack-builder__wrap > .rack-builder__viewer .rack-builder__zoom {
+      bottom: 28px;
     }
   }
 
@@ -844,6 +870,7 @@
             </svg>
           </button>
         </div>
+        <div class="rack-builder__gesture-hint" data-rack-gesture-hint aria-hidden="true">Use two fingers to move</div>
       </div>
 
       <div class="rack-builder__panel" data-rack-panel>
