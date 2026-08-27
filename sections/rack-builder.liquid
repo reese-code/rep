@@ -18,15 +18,20 @@
   admin rather than hardcoded here:
 
   - Color: give the main product a variant option named exactly "Color"
-    (Product > Variants) with values matching each swatch block's Label
-    below (e.g. "Black", "Red"). Clicking a swatch both recolors the rubber
-    end caps on the rack and bench AND switches to the matching real
-    variant (price/availability included) — it does not recolor the rack
-    frame itself or the bench pad. If the option doesn't exist yet, or a
-    color doesn't have a matching variant, the swatch still recolors the
-    3D preview but can't change what gets added to cart. Any other options
-    the product has (Size, etc.) render as native-styled dropdowns below
-    the swatches.
+    (Product > Options), and assign each value a swatch (color or image)
+    right there in admin — no theme edits needed to add, remove, or
+    recolor a swatch. Clicking a swatch both recolors the rubber end caps
+    on the rack and bench AND switches to the matching real variant
+    (price/availability included) — it does not recolor the rack frame
+    itself or the bench pad. Any other options the product has (Size,
+    etc.) render as native-styled dropdowns below the swatches.
+  - Weight plate / bench colors: each add-on's own product can likewise
+    have a "Color" option with admin-configured swatches — checking that
+    add-on's box shows a matching color picker for its rubber end caps.
+    If an add-on product has no "Color" option, its picker falls back to
+    the main product's Color swatches (still visual-only for the add-on;
+    it never affects which add-on variant gets added to cart). If neither
+    has a Color option, that color picker just doesn't render.
   - Add-ons: pick a real product for "Bar product" / "Weight plates
     product" / "Bench product" in the section settings below (each can be
     a plain, separately-sold product). Checking the box adds that
@@ -56,24 +61,32 @@
 {%- assign rb_form_id = rb_product.id | append: '-rack-builder-form' -%}
 
 {%- assign rb_color_option_index = -1 -%}
+{%- assign rb_color_option = nil -%}
 {%- for option in rb_product.options_with_values -%}
   {%- if option.name == 'Color' -%}
     {%- assign rb_color_option_index = forloop.index0 -%}
+    {%- assign rb_color_option = option -%}
   {%- endif -%}
 {%- endfor -%}
 
-{%- assign rb_initial_color_value = '' -%}
-{%- if rb_color_option_index >= 0 -%}
-  {%- assign rb_initial_color_value = rb_variant.options[rb_color_option_index] -%}
+{%- assign rb_weight_plates_color_option = nil -%}
+{%- for option in section.settings.weight_plates_product.options_with_values -%}
+  {%- if option.name == 'Color' -%}
+    {%- assign rb_weight_plates_color_option = option -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- if rb_weight_plates_color_option == nil -%}
+  {%- assign rb_weight_plates_color_option = rb_color_option -%}
 {%- endif -%}
 
-{%- assign rb_checked_swatch_index = -1 -%}
-{%- if rb_initial_color_value != blank -%}
-  {%- for block in section.blocks -%}
-    {%- if block.type == 'color_swatch' and block.settings.label == rb_initial_color_value -%}
-      {%- assign rb_checked_swatch_index = forloop.index0 -%}
-    {%- endif -%}
-  {%- endfor -%}
+{%- assign rb_bench_color_option = nil -%}
+{%- for option in section.settings.bench_product.options_with_values -%}
+  {%- if option.name == 'Color' -%}
+    {%- assign rb_bench_color_option = option -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- if rb_bench_color_option == nil -%}
+  {%- assign rb_bench_color_option = rb_color_option -%}
 {%- endif -%}
 
 {%- assign rb_bar_variant = section.settings.bar_product.selected_or_first_available_variant -%}
@@ -898,46 +911,42 @@
           </div>
         </div>
 
-        {%- if rb_color_option_index >= 0 -%}
+        {%- if rb_color_option -%}
           <fieldset class="variant-option variant-option--buttons variant-option--swatches">
             <legend>Color</legend>
-            {%- for block in section.blocks -%}
-              {%- if block.type == 'color_swatch' -%}
-                {%- if section.settings.color_selector_style == 'swatch' -%}
-                  <label class="variant-option__button-label variant-option__button-label--has-swatch">
-                    <input
-                      type="radio"
-                      name="rack-builder-color-{{ section.id }}"
-                      value="{{ block.settings.label }}"
-                      aria-label="{{ block.settings.label }}"
-                      data-rack-swatch
-                      data-color="{{ block.settings.color }}"
-                      data-option-index="{{ rb_color_option_index }}"
-                      {% if forloop.index0 == rb_checked_swatch_index or rb_checked_swatch_index == -1 and forloop.first %}
-                        checked
-                      {% endif %}
-                      {{ block.shopify_attributes }}
-                    >
-                    <span class="swatch swatch--unscaled" style="--swatch-background: {{ block.settings.color }};"></span>
-                  </label>
-                {%- else -%}
-                  <label class="variant-option__button-label">
-                    <input
-                      type="radio"
-                      name="rack-builder-color-{{ section.id }}"
-                      value="{{ block.settings.label }}"
-                      aria-label="{{ block.settings.label }}"
-                      data-rack-swatch
-                      data-color="{{ block.settings.color }}"
-                      data-option-index="{{ rb_color_option_index }}"
-                      {% if forloop.index0 == rb_checked_swatch_index or rb_checked_swatch_index == -1 and forloop.first %}
-                        checked
-                      {% endif %}
-                      {{ block.shopify_attributes }}
-                    >
-                    <span class="variant-option__button-label__text">{{ block.settings.label }}</span>
-                  </label>
-                {%- endif -%}
+            {%- for value in rb_color_option.values -%}
+              {%- assign rb_hex = '' -%}
+              {%- if value.swatch.color -%}
+                {%- assign rb_hex = value.swatch.color | color_to_hex -%}
+              {%- endif -%}
+              {%- if section.settings.color_selector_style == 'swatch' -%}
+                <label class="variant-option__button-label variant-option__button-label--has-swatch">
+                  <input
+                    type="radio"
+                    name="rack-builder-color-{{ section.id }}"
+                    value="{{ value | escape }}"
+                    aria-label="{{ value.name | escape }}"
+                    data-rack-swatch
+                    data-color="{{ rb_hex }}"
+                    data-option-index="{{ rb_color_option_index }}"
+                    {% if value.selected %}checked{% endif %}
+                  >
+                  {%- render 'swatch', swatch: value.swatch -%}
+                </label>
+              {%- else -%}
+                <label class="variant-option__button-label">
+                  <input
+                    type="radio"
+                    name="rack-builder-color-{{ section.id }}"
+                    value="{{ value | escape }}"
+                    aria-label="{{ value.name | escape }}"
+                    data-rack-swatch
+                    data-color="{{ rb_hex }}"
+                    data-option-index="{{ rb_color_option_index }}"
+                    {% if value.selected %}checked{% endif %}
+                  >
+                  <span class="variant-option__button-label__text">{{ value.name }}</span>
+                </label>
               {%- endif -%}
             {%- endfor -%}
           </fieldset>
@@ -1037,79 +1046,87 @@
           </label>
         </fieldset>
 
-        <fieldset class="variant-option variant-option--buttons variant-option--swatches rack-builder__addon-colors" data-rack-addon-colors="weight_plates" hidden>
-          <legend>Weight plate color</legend>
-          {%- for block in section.blocks -%}
-            {%- if block.type == 'color_swatch' -%}
+        {%- if rb_weight_plates_color_option -%}
+          <fieldset class="variant-option variant-option--buttons variant-option--swatches rack-builder__addon-colors" data-rack-addon-colors="weight_plates" hidden>
+            <legend>Weight plate color</legend>
+            {%- for value in rb_weight_plates_color_option.values -%}
+              {%- assign rb_hex = '' -%}
+              {%- if value.swatch.color -%}
+                {%- assign rb_hex = value.swatch.color | color_to_hex -%}
+              {%- endif -%}
               {%- if section.settings.color_selector_style == 'swatch' -%}
                 <label class="variant-option__button-label variant-option__button-label--has-swatch">
                   <input
                     type="radio"
                     name="rack-builder-addon-color-weight_plates-{{ section.id }}"
-                    value="{{ block.settings.label }}"
-                    aria-label="{{ block.settings.label }}"
+                    value="{{ value | escape }}"
+                    aria-label="{{ value.name | escape }}"
                     data-rack-addon-swatch
                     data-target="weight_plates"
-                    data-color="{{ block.settings.color }}"
+                    data-color="{{ rb_hex }}"
                     {% if forloop.first %}checked{% endif %}
                   >
-                  <span class="swatch swatch--unscaled" style="--swatch-background: {{ block.settings.color }};"></span>
+                  {%- render 'swatch', swatch: value.swatch -%}
                 </label>
               {%- else -%}
                 <label class="variant-option__button-label">
                   <input
                     type="radio"
                     name="rack-builder-addon-color-weight_plates-{{ section.id }}"
-                    value="{{ block.settings.label }}"
-                    aria-label="{{ block.settings.label }}"
+                    value="{{ value | escape }}"
+                    aria-label="{{ value.name | escape }}"
                     data-rack-addon-swatch
                     data-target="weight_plates"
-                    data-color="{{ block.settings.color }}"
+                    data-color="{{ rb_hex }}"
                     {% if forloop.first %}checked{% endif %}
                   >
-                  <span class="variant-option__button-label__text">{{ block.settings.label }}</span>
+                  <span class="variant-option__button-label__text">{{ value.name }}</span>
                 </label>
               {%- endif -%}
-            {%- endif -%}
-          {%- endfor -%}
-        </fieldset>
+            {%- endfor -%}
+          </fieldset>
+        {%- endif -%}
 
-        <fieldset class="variant-option variant-option--buttons variant-option--swatches rack-builder__addon-colors" data-rack-addon-colors="bench" hidden>
-          <legend>Bench color</legend>
-          {%- for block in section.blocks -%}
-            {%- if block.type == 'color_swatch' -%}
+        {%- if rb_bench_color_option -%}
+          <fieldset class="variant-option variant-option--buttons variant-option--swatches rack-builder__addon-colors" data-rack-addon-colors="bench" hidden>
+            <legend>Bench color</legend>
+            {%- for value in rb_bench_color_option.values -%}
+              {%- assign rb_hex = '' -%}
+              {%- if value.swatch.color -%}
+                {%- assign rb_hex = value.swatch.color | color_to_hex -%}
+              {%- endif -%}
               {%- if section.settings.color_selector_style == 'swatch' -%}
                 <label class="variant-option__button-label variant-option__button-label--has-swatch">
                   <input
                     type="radio"
                     name="rack-builder-addon-color-bench-{{ section.id }}"
-                    value="{{ block.settings.label }}"
-                    aria-label="{{ block.settings.label }}"
+                    value="{{ value | escape }}"
+                    aria-label="{{ value.name | escape }}"
                     data-rack-addon-swatch
                     data-target="bench"
-                    data-color="{{ block.settings.color }}"
+                    data-color="{{ rb_hex }}"
                     {% if forloop.first %}checked{% endif %}
                   >
-                  <span class="swatch swatch--unscaled" style="--swatch-background: {{ block.settings.color }};"></span>
+                  {%- render 'swatch', swatch: value.swatch -%}
                 </label>
               {%- else -%}
                 <label class="variant-option__button-label">
                   <input
                     type="radio"
                     name="rack-builder-addon-color-bench-{{ section.id }}"
-                    value="{{ block.settings.label }}"
-                    aria-label="{{ block.settings.label }}"
+                    value="{{ value | escape }}"
+                    aria-label="{{ value.name | escape }}"
                     data-rack-addon-swatch
                     data-target="bench"
-                    data-color="{{ block.settings.color }}"
+                    data-color="{{ rb_hex }}"
                     {% if forloop.first %}checked{% endif %}
                   >
-                  <span class="variant-option__button-label__text">{{ block.settings.label }}</span>
+                  <span class="variant-option__button-label__text">{{ value.name }}</span>
                 </label>
               {%- endif -%}
-            {%- endif -%}
-          {%- endfor -%}
-        </fieldset>
+            {%- endfor -%}
+          </fieldset>
+        {%- endif -%}
 
         <script type="application/json" data-rack-variants>
           [
@@ -1304,6 +1321,10 @@
     {
       "type": "paragraph",
       "content": "Each picker is a real, separately-sold product. Checking its box adds its first available variant to the cart at its real price. Leave blank to keep that toggle as a 3D preview only (no cart effect)."
+    },
+    {
+      "type": "paragraph",
+      "content": "Color swatches come from Shopify admin, not this theme editor: give the main product (and, optionally, the weight plate / bench products below) a \"Color\" option with a swatch set on each value (Product > Options in admin). Add, remove, or recolor swatches there — no code or theme-editor changes needed."
     },
     {
       "type": "product",
@@ -1555,39 +1576,9 @@
       "default": "<p>30-day return window from delivery. Item must be unused and in its original packaging. Contact us for a return authorization before shipping anything back — freight returns without one may be refused.</p>"
     }
   ],
-  "blocks": [
-    {
-      "type": "color_swatch",
-      "name": "Color swatch",
-      "settings": [
-        {
-          "type": "paragraph",
-          "content": "Label must exactly match one of the main product's \"Color\" variant option values to switch variants. Otherwise it only recolors the 3D preview."
-        },
-        {
-          "type": "text",
-          "id": "label",
-          "label": "Label",
-          "default": "Black"
-        },
-        {
-          "type": "color",
-          "id": "color",
-          "label": "Color",
-          "default": "#1a1a1a"
-        }
-      ]
-    }
-  ],
   "presets": [
     {
-      "name": "Rack Builder (3D)",
-      "blocks": [
-        { "type": "color_swatch", "settings": { "label": "Black", "color": "#1a1a1a" } },
-        { "type": "color_swatch", "settings": { "label": "Red", "color": "#b91c1c" } },
-        { "type": "color_swatch", "settings": { "label": "Blue", "color": "#1d4ed8" } },
-        { "type": "color_swatch", "settings": { "label": "Silver", "color": "#c0c0c0" } }
-      ]
+      "name": "Rack Builder (3D)"
     }
   ]
 }

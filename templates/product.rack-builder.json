@@ -429,42 +429,6 @@
     },
     "rack_builder_mCngCH": {
       "type": "rack-builder",
-      "blocks": {
-        "color_swatch_qmrNFg": {
-          "type": "color_swatch",
-          "settings": {
-            "label": "Black",
-            "color": "#1a1a1a"
-          }
-        },
-        "color_swatch_CqxyAa": {
-          "type": "color_swatch",
-          "settings": {
-            "label": "Red",
-            "color": "#b91c1c"
-          }
-        },
-        "color_swatch_pjVemW": {
-          "type": "color_swatch",
-          "settings": {
-            "label": "Blue",
-            "color": "#1d4ed8"
-          }
-        },
-        "color_swatch_HRPYkV": {
-          "type": "color_swatch",
-          "settings": {
-            "label": "Silver",
-            "color": "#c0c0c0"
-          }
-        }
-      },
-      "block_order": [
-        "color_swatch_qmrNFg",
-        "color_swatch_CqxyAa",
-        "color_swatch_pjVemW",
-        "color_swatch_HRPYkV"
-      ],
       "name": "Rack Builder (3D)",
       "settings": {
         "product": "{{ closest.product }}",
